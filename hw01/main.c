@@ -70,7 +70,7 @@ int assign()
         }
     }
     if (!got_number) {
-        print_error_message("SYNTAX ERROR");
+        print_error_message("Syntax error");
     }
     print_out();
     return input;
@@ -105,21 +105,21 @@ int operation(int mode)
         } else if (!got_number && input == 'O') {
             int success = octal(&input, &num, false);
             if (success == 1) {
-                print_error_message("SYNTAX ERROR");
+                print_error_message("Syntax error");
             }
             break;
 
         } else if (!got_number && input == 'T') {
             int success = binary(&input, &num, false);
             if (success == 1) {
-                print_error_message("SYNTAX ERROR");
+                print_error_message("Syntax error");
             }
             break;
 
         } else if (!got_number && input == 'X') {
             int success = hexa(&input, &num, false);
             if (success == 1) {
-                print_error_message("SYNTAX ERROR");
+                print_error_message("Syntax error");
             }
             break;
 
@@ -129,7 +129,7 @@ int operation(int mode)
 
         } else {
             if (!got_number) {
-                print_error_message("SYNTAX ERROR");
+                print_error_message("Syntax error");
             }
             break;
         }
@@ -165,6 +165,9 @@ int operation(int mode)
         break;
 
     case '%':
+        if (num == 0) {
+            print_error_message("Division by zero");
+        }
         accumulator %= num;
         break;
 
@@ -186,15 +189,13 @@ int operation(int mode)
     return input;
 }
 
-void comment()
+int comment()
 {
     int input = getchar();
     while (input != EOF && input != '\n') {
         input = getchar();
     }
-    if (input == EOF) {
-        exit(1);
-    }
+    return input;
 }
 
 int octal(int *input, uint64_t *num, bool delete)
@@ -390,8 +391,7 @@ bool calculate(void)
             break;
 
         case ';':
-            comment();
-            command = getchar();
+            command =comment();
             break;
 
         case '+':
@@ -438,7 +438,7 @@ bool calculate(void)
             break;
 
         default:
-            print_error_message("SYNTAX ERROR");
+            print_error_message("Syntax error");
             break;
         }
     }
