@@ -20,6 +20,40 @@ void print_error_message(char *message)
     exit(EXIT_FAILURE);
 }
 
+void rotate(int* input, bool mode) {
+
+    *input = getchar();
+    bool got_num = false;
+    int move = 0;
+
+    while (*input != EOF) {
+
+        if (*input >= '0' && *input <= '9') {
+
+            if (! got_num) {
+                got_num = true;
+            }
+            move *= 10;
+            move += *input -48;
+            *input = getchar();
+
+        } else if (isspace(*input)) {
+            *input = getchar();
+        } else if (! got_num) {
+            print_error_message("Syntax error");
+        } else {
+            break;
+        }
+    }
+    if (mode) {
+        accumulator = (accumulator << move)|(accumulator >> (64 - move));
+    } else {
+        accumulator = (accumulator >> move)|(accumulator << (64 - move));
+    }
+
+    print_out();
+}
+
 int assign()
 {
     bool got_number = false;
@@ -123,6 +157,14 @@ int operation(int mode)
             }
             break;
 
+        } else if (!got_number && input == 'l') {
+            rotate(&input, true);
+            break;
+
+        } else if (!got_number && input == 'r') {
+            rotate(&input, false);
+            break;
+            
         } else if (isspace(input) != 0) {
             input = getchar();
             continue;
@@ -435,6 +477,14 @@ bool calculate(void)
         case 'X':
             printf("# %" PRIX64 "\n", accumulator);
             command = getchar();
+            break;
+        
+        case 'l':
+            rotate(&command, true);
+            break;
+        
+        case 'r':
+            rotate(&command, false);
             break;
 
         default:
