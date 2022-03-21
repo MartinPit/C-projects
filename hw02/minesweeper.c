@@ -407,9 +407,10 @@ int flag_cell(size_t rows, size_t cols, uint16_t board[rows][cols], size_t row, 
         for (size_t j = 0; j < cols; j++) {
             if (is_mine(board[i][j])) {
                 mine_count++;
-                if (is_flag(board[i][j])) {
-                    flag_count++;
-                }
+            }
+
+            if (is_flag(board[i][j])) {
+                flag_count++;
             }
         }
     }
