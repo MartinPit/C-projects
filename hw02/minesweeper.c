@@ -6,16 +6,17 @@
 #include <time.h>
 
 #define UNUSED(A) (void)(A)
-#define UNKNOWN ((uint16_t)9)
-#define MINE ((uint16_t)10)
-#define HIDDEN ((uint16_t)11)
-#define FLAG ((uint16_t)50)
+#define UNKNOWN (uint16_t) 9
+#define MINE (uint16_t) 10
+#define HIDDEN (uint16_t) 11
+#define FLAG (uint16_t) 50
 
 uint16_t check_around(size_t x, size_t y, size_t rows, size_t cols,
                       uint16_t board[rows][cols]);
 void print_border(size_t cols);
 void print_row(size_t rows, size_t cols, uint16_t board[rows][cols],
                int row_number);
+void fill(size_t rows, size_t cols, uint16_t board[rows][cols]);
 
 /* ************************************************************** *
  *                         HELP FUNCTIONS                         *
@@ -78,14 +79,14 @@ bool set_cell(uint16_t *cell, char val) {
   case '.':
     *cell = UNKNOWN;
     return true;
+
   }
 
-  for (uint16_t i = 0; i < 9; i++) {
-    if (val - 48 == i) {
-      *cell = i;
-      return true;
-    }
+  if (val >= '0' && val <= '8') {
+    *cell = val - '0';
+    return true;
   }
+
   return false;
 }
 
@@ -95,7 +96,7 @@ int load_board(size_t rows, size_t cols, uint16_t board[rows][cols]) {
 
   for (size_t i = 0; i < rows; i++) {
     for (size_t j = 0; j < cols; j++) {
-      uint16_t cell;
+      uint16_t cell = 0;
       int val = getchar();
 
       if (isspace(val)) {
@@ -127,7 +128,7 @@ int load_board(size_t rows, size_t cols, uint16_t board[rows][cols]) {
 }
 
 int postprocess(size_t rows, size_t cols, uint16_t board[rows][cols]) {
-  if (rows < 3 || rows > 99 || cols < 3 || cols > 99) {
+  if (rows < MIN_SIZE || rows > MAX_SIZE || cols < MIN_SIZE || cols > MAX_SIZE) {
     return -1;
   }
 
@@ -145,6 +146,7 @@ int postprocess(size_t rows, size_t cols, uint16_t board[rows][cols]) {
             (i == rows - 1 && j == 0) || (i == rows - 1 && j == cols - 1)) {
           return -1;
         }
+        continue;
       }
 
       if (is_number(*cell)) {
@@ -156,18 +158,24 @@ int postprocess(size_t rows, size_t cols, uint16_t board[rows][cols]) {
         if (check_around(i, j, rows, cols, board) != *cell) {
           return -1;
         }
+        continue;
       }
       if (*cell == UNKNOWN + HIDDEN + FLAG) {
         *cell = (check_around(i, j, rows, cols, board)) + HIDDEN + FLAG;
+        continue;
       }
 
       if (*cell == UNKNOWN + HIDDEN) {
         *cell = (check_around(i, j, rows, cols, board)) + HIDDEN;
+        continue;
       }
 
       if (*cell == UNKNOWN) {
         *cell = (check_around(i, j, rows, cols, board));
+        continue;
       }
+
+      return -1;
     }
   }
 
@@ -240,12 +248,13 @@ int print_board(size_t rows, size_t cols, uint16_t board[rows][cols]) {
   return 0;
 }
 
-char show_cell(uint16_t cell) {
+char show_cell(uint16_t cell)
+{
   if (cell == MINE) {
     return 'M';
   }
 
-  if (cell >= FLAG) {
+  if (is_flag(cell)) {
     return 'F';
   }
 
@@ -254,7 +263,7 @@ char show_cell(uint16_t cell) {
   }
 
   if (cell >= 1 && cell <= 8) {
-    return (char)cell;
+    return cell + '0';
   }
 
   return ' ';
@@ -293,7 +302,7 @@ void print_row(size_t rows, size_t cols, uint16_t board[rows][cols],
       break;
 
     default:
-      printf("| %d ", val);
+      printf("| %c ", val);
       break;
     }
   }
@@ -319,6 +328,10 @@ int reveal_cell(size_t rows, size_t cols, uint16_t board[rows][cols],
     return -1;
   }
 
+  if ((board[row][col] > 21 && board[row][col] < 50) || board[row][col] > 71) {  //if it's a undefined value
+    return -1; 
+  }
+
   int result = reveal_single(&board[row][col]);
 
   if (result == 0 && board[row][col] == 0) {
@@ -339,6 +352,10 @@ int reveal_single(uint16_t *cell) {
 
   if (*cell == UNKNOWN || *cell == UNKNOWN + HIDDEN) {
     return -1;
+  }
+
+  if ((*cell > 21 && *cell < 50) || *cell > 71) {  //if it's a undefined value
+    return -1; 
   }
 
   *cell -= HIDDEN;
@@ -430,6 +447,13 @@ bool is_solved(size_t rows, size_t cols, uint16_t board[rows][cols]) {
 
 int generate_random_board(size_t rows, size_t cols, uint16_t board[rows][cols],
                           size_t mines) {
+  
+  if (rows < MIN_SIZE || cols < MIN_SIZE || rows > MAX_SIZE || cols > MAX_SIZE) {
+    return -1;
+  }
+
+  fill(rows, cols, board);
+  
   while (mines > 0) {
 
     size_t row = rand() % rows;
@@ -446,16 +470,16 @@ int generate_random_board(size_t rows, size_t cols, uint16_t board[rows][cols],
     }
   }
 
+  return postprocess(rows, cols, board);
+}
+
+void fill(size_t rows, size_t cols, uint16_t board[rows][cols])
+{
   for (size_t i = 0; i < rows; i++) {
     for (size_t j = 0; j < cols; j++) {
-
-      if (!is_mine(board[i][j])) {
-        board[i][j] = UNKNOWN;
-      }
+      board[i][j] = UNKNOWN + HIDDEN;
     }
   }
-
-  return postprocess(rows, cols, board);
 }
 
 int find_mines(size_t rows, size_t cols, uint16_t board[rows][cols]) {
