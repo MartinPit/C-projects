@@ -477,11 +477,115 @@ void fill(size_t rows, size_t cols, uint16_t board[rows][cols])
     }
 }
 
+bool simple_load(size_t rows, size_t cols, uint16_t board[rows][cols])
+{
+    size_t count = 0;
+    bool eof = false;
+
+    for (size_t i = 0; i < rows; i++) {
+        for (size_t j = 0; j < cols; j++) {
+            int val = getchar();
+
+            if (val == EOF) {
+                eof = true;
+                break;
+            }
+
+            if (toupper(val) == 'X') {
+                board[i][j] = UNKNOWN + HIDDEN;
+                count++;
+            } else if (val >= '0' && val <= '8') {
+                board[i][j] = val - '0';
+                count++;
+            } else {
+                j--;
+            }
+        }
+        if (eof) {
+            break;
+        }
+    }
+
+    if (count != rows * cols) {
+        return false;
+    }
+
+    return true;
+}
+
+bool check_hidden(size_t x, size_t y, size_t rows, size_t cols, uint16_t board[rows][cols])
+{
+    uint16_t mine_count = board[x][y];
+
+    if (mine_count == 0) {
+        return false;
+    }
+
+    for (int i = -1; i < 2; i++) {
+        for (int j = -1; j < 2; j++) {
+            if ((x == 0 && i == -1) || (y == 0 && j == -1)) {
+                continue;
+            }
+
+            if ((x == rows - 1 && i == 1) || (y == cols - 1 && j == 1)) {
+                continue;
+            }
+
+            if (board[x + i][y + j] == UNKNOWN + HIDDEN || board[x + i][y + j] == UNKNOWN + HIDDEN + FLAG) {
+                mine_count--;
+            }
+        }
+    }
+
+    return mine_count == 0;
+}
+
+void flag_mines(size_t x, size_t y, size_t rows, size_t cols, uint16_t board[rows][cols])
+{
+    for (int i = -1; i < 2; i++) {
+        for (int j = -1; j < 2; j++) {
+            if ((x == 0 && i == -1) || (y == 0 && j == -1)) {
+                continue;
+            }
+
+            if ((x == rows - 1 && i == 1) || (y == cols - 1 && j == 1)) {
+                continue;
+            }
+
+            if (board[x + i][y + j] == UNKNOWN + HIDDEN) {
+                board[x + i][y + j] += FLAG;
+            }
+        }
+    }
+}
+
 int find_mines(size_t rows, size_t cols, uint16_t board[rows][cols])
 {
-    // TODO: Implement me
-    UNUSED(rows);
-    UNUSED(cols);
-    UNUSED(board);
-    return -1;
+    int mines_found = 0;
+
+    if (!simple_load(rows, cols, board)) {
+        return -1;
+    }
+
+    for (size_t i = 0; i < rows; i++) {
+        for (size_t j = 0; j < cols; j++) {
+            if (board[i][j] == UNKNOWN + HIDDEN) { // if it's an 'X'
+                continue;
+            }
+
+            if (check_hidden(i, j, rows, cols, board)) {
+                flag_mines(i, j, rows, cols, board);
+            }
+        }
+    }
+
+    for (size_t i = 0; i < rows; i++) {
+        for (size_t j = 0; j < cols; j++) {
+            if (is_flag(board[i][j])) {
+                mines_found++;
+            }
+        }
+    }
+
+    return mines_found;
 }
