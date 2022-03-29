@@ -5,19 +5,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void print_out();
-int octal(int *, uint64_t *, bool);
-uint64_t convert(uint64_t, int);
-int hexa(int *, uint64_t *, bool);
-int binary(int *, uint64_t *, bool);
-
 uint64_t accumulator = 0;
 uint64_t memory = 0;
 
-void print_error_message(char *message)
+void error_with_exit_failure(char *message)
 {
     fprintf(stderr, "%s\n", message);
     exit(EXIT_FAILURE);
+}
+
+void print_out()
+{
+    printf("# %" PRIu64 "\n", accumulator);
 }
 
 void rotate(int *input, bool mode)
@@ -27,18 +26,18 @@ void rotate(int *input, bool mode)
     int move = 0;
 
     while (*input != EOF) {
-        if (*input >= '0' && *input <= '9') {
+        if (isdigit(*input)) {
             if (!got_num) {
                 got_num = true;
             }
             move *= 10;
-            move += *input - 48;
+            move += *input - '0';
             *input = getchar();
 
         } else if (isspace(*input)) {
             *input = getchar();
         } else if (!got_num) {
-            print_error_message("Syntax error");
+            error_with_exit_failure("Syntax error");
         } else {
             break;
         }
@@ -52,229 +51,6 @@ void rotate(int *input, bool mode)
     print_out();
 }
 
-int assign()
-{
-    bool got_number = false;
-
-    int input = getchar();
-
-    while (input != EOF) {
-        if (input >= '0' && input <= '9') {
-            if (!got_number) {
-                accumulator = 0;
-                got_number = true;
-            }
-            accumulator = accumulator * 10 + input - 48;
-            input = getchar();
-
-        } else if (!got_number && input == 'O') {
-            int success = octal(&input, &accumulator, true);
-            if (success == 0) {
-                got_number = true;
-            }
-            break;
-
-        } else if (!got_number && input == 'T') {
-            int success = binary(&input, &accumulator, true);
-            if (success == 0) {
-                got_number = true;
-            }
-            break;
-
-        } else if (!got_number && input == 'X') {
-            int success = hexa(&input, &accumulator, true);
-            if (success == 0) {
-                got_number = true;
-            }
-            break;
-
-        } else if (!got_number && input == 'm') {
-            accumulator = memory;
-            got_number = true;
-            input = getchar();
-            break;
-
-        } else if (isspace(input) != 0) {
-            input = getchar();
-
-        } else {
-            break;
-        }
-    }
-    if (!got_number) {
-        print_error_message("Syntax error");
-    }
-    print_out();
-    return input;
-}
-
-void print_out()
-{
-    printf("# %" PRIu64 "\n", accumulator);
-}
-
-int operation(int mode)
-{
-    uint64_t num = 0;
-    bool got_number = false;
-
-    int input = getchar();
-
-    while (input != EOF) {
-        if (input >= '0' && input <= '9') {
-            if (!got_number) {
-                got_number = true;
-            }
-            num *= 10;
-            num += input - 48;
-            input = getchar();
-
-        } else if (!got_number && input == 'm') {
-            num = memory;
-            input = getchar();
-            break;
-
-        } else if (!got_number && input == 'O') {
-            int success = octal(&input, &num, false);
-            if (success == 1) {
-                print_error_message("Syntax error");
-            }
-            break;
-
-        } else if (!got_number && input == 'T') {
-            int success = binary(&input, &num, false);
-            if (success == 1) {
-                print_error_message("Syntax error");
-            }
-            break;
-
-        } else if (!got_number && input == 'X') {
-            int success = hexa(&input, &num, false);
-            if (success == 1) {
-                print_error_message("Syntax error");
-            }
-            break;
-
-        } else if (!got_number && input == 'l') {
-            rotate(&input, true);
-            break;
-
-        } else if (!got_number && input == 'r') {
-            rotate(&input, false);
-            break;
-
-        } else if (isspace(input) != 0) {
-            input = getchar();
-            continue;
-
-        } else {
-            if (!got_number) {
-                print_error_message("Syntax error");
-            }
-            break;
-        }
-    }
-
-    switch (mode) {
-    case '+':
-        if (accumulator + num < accumulator) {
-            print_error_message("Out of range");
-        }
-        accumulator += num;
-        break;
-
-    case '-':
-        if (num > accumulator) {
-            print_error_message("Out of range");
-        }
-        accumulator -= num;
-        break;
-
-    case '*':
-        if (accumulator * num < accumulator) {
-            print_error_message("Out of range");
-        }
-        accumulator *= num;
-        break;
-
-    case '/':
-        if (num == 0) {
-            print_error_message("Division by zero");
-        }
-        accumulator /= num;
-        break;
-
-    case '%':
-        if (num == 0) {
-            print_error_message("Division by zero");
-        }
-        accumulator %= num;
-        break;
-
-    case '<':
-        if (num > 63) {
-            print_error_message("Out of range");
-        }
-        accumulator <<= num;
-        break;
-
-    case '>':
-        if (num > 63) {
-            print_error_message("Out of range");
-        }
-        accumulator >>= num;
-        break;
-    }
-    print_out();
-    return input;
-}
-
-int comment()
-{
-    int input = getchar();
-    while (input != EOF && input != '\n') {
-        input = getchar();
-    }
-    return input;
-}
-
-int octal(int *input, uint64_t *num, bool delete)
-{
-    printf("# %" PRIo64 "\n", accumulator);
-    if (delete) {
-        accumulator = 0;
-    }
-    *input = getchar();
-    bool got_number = false;
-
-    while (*input != EOF) {
-        if (*input >= '0' && *input <= '7') {
-            if (!got_number) {
-                got_number = true;
-            }
-            *num = *num * 8;
-            *num += *input - 48;
-            *input = getchar();
-
-        } else if (!got_number && *input == 'm') {
-            *num = memory;
-            *input = getchar();
-            break;
-
-        } else if (isspace(*input) != 0) {
-            *input = getchar();
-            continue;
-
-        } else {
-            break;
-        }
-    }
-
-    if (!got_number) {
-        return 1;
-    }
-    return 0;
-}
 void print_binary(uint64_t num)
 {
     uint64_t temp = 0;
@@ -299,9 +75,15 @@ void print_binary(uint64_t num)
     putchar('\n');
 }
 
-int binary(int *input, uint64_t *num, bool delete)
+bool other_base(int *input, uint64_t *num, bool delete, char mode)
 {
-    print_binary(accumulator);
+    if (mode == 'X') {
+        printf("# %" PRIX64 "\n", accumulator);
+    } else if (mode == 'O') {
+        printf("# %" PRIo64 "\n", accumulator);
+    } else {
+        print_binary(accumulator);
+    }
     if (delete) {
         accumulator = 0;
     }
@@ -309,15 +91,47 @@ int binary(int *input, uint64_t *num, bool delete)
     bool got_number = false;
 
     while (*input != EOF) {
-        if (*input == '0' || *input == '1') {
-            if (!got_number) {
-                got_number = true;
+        if (mode == 'O') {
+            if (*input >= '0' && *input <= '7') {
+                if (!got_number) {
+                    got_number = true;
+                }
+                *num = *num * 8;
+                *num += *input - '0';
+                *input = getchar();
+                continue;
             }
-            *num = *num * 2;
-            *num += *input - 48;
-            *input = getchar();
+        } else if (mode == 'X') {
+            if (*input >= '0' && *input <= '9') {
+                if (!got_number) {
+                    got_number = true;
+                }
+                *num = *num * 16;
+                *num += *input - '0';
+                *input = getchar();
+                continue;
 
-        } else if (!got_number && *input == 'm') {
+            } else if (toupper(*input) >= 'A' && toupper(*input) <= 'F') {
+                if (!got_number) {
+                    got_number = true;
+                }
+                *num = *num * 16;
+                *num += toupper(*input) - 55;
+                *input = getchar();
+                continue;
+            }
+        } else {
+            if (*input == '0' || *input == '1') {
+                if (!got_number) {
+                    got_number = true;
+                }
+                *num = *num * 2;
+                *num += *input - '0';
+                *input = getchar();
+                continue;
+            }
+        }
+        if (!got_number && *input == 'm') {
             *num = memory;
             *input = getchar();
             break;
@@ -332,58 +146,166 @@ int binary(int *input, uint64_t *num, bool delete)
     }
 
     if (!got_number) {
-        return 1;
+        return false;
     }
-    return 0;
+    return true;
 }
 
-int hexa(int *input, uint64_t *num, bool delete)
+int assign()
 {
-    printf("# %" PRIX64 "\n", accumulator);
-    if (delete) {
-        accumulator = 0;
-    }
-    *input = getchar();
     bool got_number = false;
 
-    while (*input != EOF) {
-        if (*input >= '0' && *input <= '9') {
+    int input = getchar();
+
+    while (input != EOF) {
+        if (input >= '0' && input <= '9') {
             if (!got_number) {
+                accumulator = 0;
                 got_number = true;
             }
-            *num = *num * 16;
-            *num += *input - 48;
-            *input = getchar();
+            accumulator = accumulator * 10 + input - '0';
+            input = getchar();
 
-        } else if (toupper(*input) >= 'A' && toupper(*input) <= 'F') {
-            if (!got_number) {
-                got_number = true;
-            }
-            *num = *num * 16;
-            *num += toupper(*input) - 55;
-            *input = getchar();
-
-        } else if (!got_number && *input == 'm') {
-            *num = memory;
-            *input = getchar();
+        } else if (!got_number && (input == 'O' || input == 'T' || input == 'X')) {
+            got_number = other_base(&input, &accumulator, true, input);
             break;
 
-        } else if (isspace(*input) != 0) {
-            *input = getchar();
-            continue;
+        } else if (!got_number && input == 'm') {
+            accumulator = memory;
+            got_number = true;
+            input = getchar();
+            break;
+
+        } else if (isspace(input) != 0) {
+            input = getchar();
 
         } else {
             break;
         }
     }
-
     if (!got_number) {
-        return 1;
+        error_with_exit_failure("Syntax error");
     }
-    return 0;
+    print_out();
+    return input;
 }
 
-bool calculate(void)
+void execute(int mode, uint16_t num)
+{
+    switch (mode) {
+    case '+':
+        if (accumulator + num < accumulator) {
+            error_with_exit_failure("Out of range");
+        }
+        accumulator += num;
+        break;
+
+    case '-':
+        if (num > accumulator) {
+            error_with_exit_failure("Out of range");
+        }
+        accumulator -= num;
+        break;
+
+    case '*':
+        if (accumulator * num < accumulator) {
+            error_with_exit_failure("Out of range");
+        }
+        accumulator *= num;
+        break;
+
+    case '/':
+        if (num == 0) {
+            error_with_exit_failure("Division by zero");
+        }
+        accumulator /= num;
+        break;
+
+    case '%':
+        if (num == 0) {
+            error_with_exit_failure("Division by zero");
+        }
+        accumulator %= num;
+        break;
+
+    case '<':
+        if (num > 63) {
+            error_with_exit_failure("Out of range");
+        }
+        accumulator <<= num;
+        break;
+
+    case '>':
+        if (num > 63) {
+            error_with_exit_failure("Out of range");
+        }
+        accumulator >>= num;
+        break;
+    }
+}
+
+int operation(int mode)
+{
+    uint64_t num = 0;
+    bool got_number = false;
+
+    int input = getchar();
+
+    while (input != EOF) {
+        if (input >= '0' && input <= '9') {
+            if (!got_number) {
+                got_number = true;
+            }
+            num *= 10;
+            num += input - '0';
+            input = getchar();
+
+        } else if (!got_number && input == 'm') {
+            num = memory;
+            input = getchar();
+            break;
+
+        } else if (!got_number && (input == 'O' || input == 'T' || input == 'X')) {
+            if (!other_base(&input, &num, false, input)) {
+                error_with_exit_failure("Syntax error");
+            }
+            break;
+
+        } else if (!got_number && input == 'l') {
+            rotate(&input, true);
+            break;
+
+        } else if (!got_number && input == 'r') {
+            rotate(&input, false);
+            break;
+
+        } else if (isspace(input) != 0) {
+            input = getchar();
+            continue;
+
+        } else {
+            if (!got_number) {
+                error_with_exit_failure("Syntax error");
+            }
+            break;
+        }
+    }
+
+    execute(mode, num);
+    print_out();
+    return input;
+}
+
+int comment()
+{
+    int input = getchar();
+    while (input != EOF && input != '\n') {
+        input = getchar();
+    }
+    return input;
+}
+
+void calculate(void)
 {
     int command = getchar();
 
@@ -407,9 +329,6 @@ bool calculate(void)
             break;
 
         case '\n':
-            command = getchar();
-            break;
-
         case ' ':
             command = getchar();
             break;
@@ -435,29 +354,11 @@ bool calculate(void)
             break;
 
         case '+':
-            command = operation(command);
-            break;
-
         case '-':
-            command = operation(command);
-            break;
-
         case '*':
-            command = operation(command);
-            break;
-
         case '/':
-            command = operation(command);
-            break;
-
         case '%':
-            command = operation(command);
-            break;
-
         case '<':
-            command = operation(command);
-            break;
-
         case '>':
             command = operation(command);
             break;
@@ -486,17 +387,14 @@ bool calculate(void)
             break;
 
         default:
-            print_error_message("Syntax error");
+            error_with_exit_failure("Syntax error");
             break;
         }
     }
-    return true;
 }
 
 int main(void)
 {
-    if (!calculate()) {
-        return EXIT_FAILURE;
-    }
+    calculate();
     return EXIT_SUCCESS;
 }
