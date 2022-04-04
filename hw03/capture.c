@@ -1,15 +1,16 @@
 #include "capture.h"
 #include <stdlib.h>
+#include <string.h>
 
 #define UNUSED(x) ((void) x);
 
 void destroy_node(struct node_t* node);
 int add_node(struct pcap_context *context, struct capture_t *capture);
+bool add_copy_node(struct capture_t *capture, struct packet_t *packet);
 
 int load_capture(struct capture_t *capture, const char *filename)
 {
     struct pcap_context context;
-    capture -> length = 0;
 
     if (init_context(&context, filename) == PCAP_LOAD_ERROR) {
         destroy_context(&context);
@@ -27,6 +28,10 @@ int load_capture(struct capture_t *capture, const char *filename)
         destroy_capture(capture);
         return -1;
     }
+
+    capture -> first = NULL;
+    capture -> last = NULL;
+
     int status = add_node(&context, capture);
     while (status == PCAP_SUCCESS) {
         status = add_node(&context, capture);
@@ -53,7 +58,6 @@ void destroy_capture(struct capture_t *capture)
         destroy_packet(node -> packet);
         struct node_t *temp_node = node -> next;
         destroy_node(node);
-        capture -> length--;
         node = temp_node;
     }
 
@@ -86,7 +90,16 @@ struct packet_t *get_packet(
 
 size_t packet_count(const struct capture_t *const capture)
 {
-    return capture -> length;
+    size_t length = 0;
+
+    struct node_t *node = capture -> first;
+
+    while(node != NULL) {
+        length++;
+        node = node -> next;
+    }
+
+    return length;
 }
 
 size_t data_transfered(const struct capture_t *const capture)
@@ -108,10 +121,25 @@ int filter_protocol(
         struct capture_t *filtered,
         uint8_t protocol)
 {
-    UNUSED(original);
-    UNUSED(filtered);
-    UNUSED(protocol);
-    return -1;
+    filtered -> header = malloc(sizeof(struct pcap_header_t));
+    if (filtered -> header == NULL) {
+        return -1;
+    }
+
+    memcpy(filtered -> header, original -> header, sizeof(struct pcap_header_t));
+
+    filtered -> first = NULL;
+    filtered -> last = NULL;
+
+    for (size_t i = 0; i < packet_count(original); i++) {
+        if (get_packet(original, i) -> ip_header -> protocol == protocol) {
+            if (!add_copy_node(filtered, get_packet(original, i))) {
+                destroy_capture(filtered);
+                return -1;
+            }
+        }
+    }
+    return 0;
 }
 
 int filter_larger_than(
@@ -119,10 +147,25 @@ int filter_larger_than(
         struct capture_t *filtered,
         uint32_t size)
 {
-    UNUSED(original);
-    UNUSED(filtered);
-    UNUSED(size);
-    return -1;
+    filtered -> header = malloc(sizeof(struct pcap_header_t));
+    if (filtered -> header == NULL) {
+        return -1;
+    }
+
+    memcpy(filtered -> header, original -> header, sizeof(struct pcap_header_t));
+
+    filtered -> first = NULL;
+    filtered -> last = NULL;
+
+    for (size_t i = 0; i < packet_count(original); i++) {
+        if (get_packet(original, i) -> packet_header -> orig_len >= size) {
+            if (!add_copy_node(filtered, get_packet(original, i))) {
+                destroy_capture(filtered);
+                return -1;
+            }
+        }
+    }
+    return 0;
 }
 
 int filter_from_to(
@@ -131,11 +174,37 @@ int filter_from_to(
         uint8_t source_ip[4],
         uint8_t destination_ip[4])
 {
-    UNUSED(original);
-    UNUSED(filtered);
-    UNUSED(source_ip);
-    UNUSED(destination_ip);
-    return -1;
+    filtered -> header = malloc(sizeof(struct pcap_header_t));
+    if (filtered -> header == NULL) {
+        return -1;
+    }
+
+    memcpy(filtered -> header, original -> header, sizeof(struct pcap_header_t));
+
+    filtered -> first = NULL;
+    filtered -> last = NULL;
+
+    for (size_t i = 0; i < packet_count(original); i++) {
+        
+        bool approved = true;
+        uint8_t *src = get_packet(original, i) -> ip_header -> src_addr;
+        uint8_t *dest = get_packet(original, i) -> ip_header -> dst_addr;
+
+        for (int j = 0; j < 4; j++) {
+            if (src[j] != source_ip[j] || dest[j] != destination_ip[j]) {
+                approved = false;
+                break;
+            }
+        }
+
+        if (approved) {
+            if (!add_copy_node(filtered, get_packet(original, i))) {
+                destroy_capture(filtered);
+                return -1;
+            }
+        }
+    }
+    return 0;
 }
 
 int filter_from_mask(
@@ -223,14 +292,35 @@ int add_node(struct pcap_context *context, struct capture_t *capture) {
         return PCAP_LOAD_ERROR;
     }
 
-    if (capture -> length == 0) {
+    if (capture -> first == NULL) {
         capture -> first = node;
     } else {
         capture -> last -> next = node;
     }
 
     capture -> last = node;
-    capture -> length++;
 
     return PCAP_SUCCESS;
+}
+
+bool add_copy_node(struct capture_t *capture, struct packet_t *packet) {
+    struct node_t *node = initialize_node();
+    if (node == NULL) {
+        return false;
+    }
+
+    if (copy_packet(packet, node -> packet) == PCAP_LOAD_ERROR) {
+        destroy_node(node);
+        return false;
+    }
+
+    if (capture -> first == NULL) {
+        capture -> first = node;
+    } else {
+        capture -> last -> next = node;
+    }
+
+    capture -> last = node;
+
+    return true;
 }
