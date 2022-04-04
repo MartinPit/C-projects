@@ -2,8 +2,9 @@
 #include <stdlib.h>
 
 #define UNUSED(x) ((void) x);
+
 void destroy_node(struct node_t* node);
-struct node_t* initialize_node();
+int add_node(struct pcap_context *context, struct capture_t *capture);
 
 int load_capture(struct capture_t *capture, const char *filename)
 {
@@ -16,71 +17,28 @@ int load_capture(struct capture_t *capture, const char *filename)
     }
 
     capture -> header = malloc(sizeof(struct pcap_header_t));
+    if (capture -> header == NULL) {
+        destroy_context(&context);
+        return -1;
+    }
+
     if (load_header(&context, capture -> header) == PCAP_LOAD_ERROR) {
         destroy_context(&context);
         destroy_capture(capture);
         return -1;
     }
-
-    struct node_t *node = initialize_node();
-    if (node == NULL) {
-        destroy_context(&context);
-        destroy_capture(capture);
-        destroy_node(node);
-        return -1;
-    }
-
-    int status = load_packet(&context, node -> packet);
-    if (status == PCAP_LOAD_ERROR) {
-        destroy_packet(node -> packet);
-        destroy_context(&context);
-        destroy_capture(capture);
-        destroy_node(node);
-        return -1;
-    }
-
-    capture -> length++;
-    if (status == PCAP_FILE_END) {
-        destroy_context(&context);
-        destroy_node(node);
-        return 0;
-    }
-
-    capture -> first = node;
-    capture -> last = node;
-
-    node = initialize_node();
-    if (node == NULL) {
-        destroy_context(&context);
-        destroy_capture(capture);
-        destroy_node(node);
-        return -1;
-    }
-    status = load_packet(&context, node -> packet);
-
+    int status = add_node(&context, capture);
     while (status == PCAP_SUCCESS) {
-        (capture -> last) -> next = node;
-        capture -> last = node;
+        status = add_node(&context, capture);
+    }
 
-        node = initialize_node();
-        if (node == NULL) {
-        destroy_context(&context);
+    if (status == PCAP_LOAD_ERROR) {
         destroy_capture(capture);
-        destroy_node(node);
+        destroy_context(&context);
         return -1;
-        }
-        capture -> length++;
-        status = load_packet(&context, node -> packet);
-
     }
 
     destroy_context(&context);
-
-    if (status == PCAP_LOAD_ERROR) {
-        destroy_capture(capture);
-        return -1;
-    }
-
     return 0;
 }
 
@@ -227,6 +185,12 @@ struct node_t* initialize_node()
     }
 
     node -> packet = malloc(sizeof(struct packet_t));
+
+    if (node -> packet == NULL) {
+        free(node);
+        return NULL;
+    }
+
     node -> next = NULL;
 
     return node;
@@ -239,4 +203,34 @@ void destroy_node(struct node_t* node)
     node -> next = NULL;
 
     free(node);
+}
+
+int add_node(struct pcap_context *context, struct capture_t *capture) {
+
+    struct node_t *node = initialize_node();
+    if (node == NULL) {
+        return PCAP_LOAD_ERROR;
+    }
+
+    int status = load_packet(context, node -> packet);
+    if (status == PCAP_FILE_END) {
+        destroy_node(node);
+        return PCAP_FILE_END;
+    }
+
+    if (status == PCAP_LOAD_ERROR) {
+        destroy_node(node);
+        return PCAP_LOAD_ERROR;
+    }
+
+    if (capture -> length == 0) {
+        capture -> first = node;
+    } else {
+        capture -> last -> next = node;
+    }
+
+    capture -> last = node;
+    capture -> length++;
+
+    return PCAP_SUCCESS;
 }
