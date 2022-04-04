@@ -1,6 +1,7 @@
 #include "capture.h"
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 
 #define UNUSED(x) ((void) x);
 
@@ -323,4 +324,19 @@ bool add_copy_node(struct capture_t *capture, struct packet_t *packet) {
     capture -> last = node;
 
     return true;
+}
+
+uint32_t create_mask(uint8_t mask_length)
+{
+    int to_move = 32;
+    uint32_t mask = 0;
+
+    while(mask_length != 0) {
+        mask <<= 1;
+        to_move--;
+        mask_length--;
+
+        mask += 1;
+    }
+    return mask <<= to_move;
 }
