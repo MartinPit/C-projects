@@ -6,8 +6,22 @@
 #define UNUSED(x) ((void) x);
 
 void destroy_node(struct node_t* node);
-int add_node(struct pcap_context *context, struct capture_t *capture);
-bool add_copy_node(struct capture_t *capture, struct packet_t *packet);
+int add_node(struct pcap_context *, struct capture_t *);
+bool add_copy_node(struct capture_t *, struct packet_t *);
+bool init_copy_capture(const struct capture_t *, struct capture_t*);
+uint32_t create_uint32_t(uint8_t*);
+
+struct flow_t {
+        struct capture_t* capture;
+        struct flow_t* next;
+        uint8_t src[4];
+        uint8_t dst[4];
+    };
+
+    struct linked_flow {
+        struct flow_t* first;
+        struct flow_t* last;
+    };
 
 int load_capture(struct capture_t *capture, const char *filename)
 {
@@ -51,7 +65,6 @@ int load_capture(struct capture_t *capture, const char *filename)
 void destroy_capture(struct capture_t *capture)
 {   
     free(capture -> header);
-    capture -> header = NULL;
 
     struct node_t *node = capture -> first;
 
@@ -73,9 +86,9 @@ const struct pcap_header_t *get_header(const struct capture_t *const capture)
 struct packet_t *get_packet(
         const struct capture_t *const capture,
         size_t index)
-{
-    if (index == 0) {
-        return capture -> first -> packet;
+{   
+    if (index >= packet_count(capture)) {
+        return NULL;
     }
 
     struct node_t *node = capture -> first;
@@ -84,6 +97,7 @@ struct packet_t *get_packet(
     while (count != index) {
         count++;
         node = node -> next;
+
     }
 
     return node -> packet;
@@ -122,15 +136,9 @@ int filter_protocol(
         struct capture_t *filtered,
         uint8_t protocol)
 {
-    filtered -> header = malloc(sizeof(struct pcap_header_t));
-    if (filtered -> header == NULL) {
+    if (! init_copy_capture(original, filtered)) {
         return -1;
     }
-
-    memcpy(filtered -> header, original -> header, sizeof(struct pcap_header_t));
-
-    filtered -> first = NULL;
-    filtered -> last = NULL;
 
     for (size_t i = 0; i < packet_count(original); i++) {
         if (get_packet(original, i) -> ip_header -> protocol == protocol) {
@@ -148,15 +156,9 @@ int filter_larger_than(
         struct capture_t *filtered,
         uint32_t size)
 {
-    filtered -> header = malloc(sizeof(struct pcap_header_t));
-    if (filtered -> header == NULL) {
+    if (! init_copy_capture(original, filtered)) {
         return -1;
     }
-
-    memcpy(filtered -> header, original -> header, sizeof(struct pcap_header_t));
-
-    filtered -> first = NULL;
-    filtered -> last = NULL;
 
     for (size_t i = 0; i < packet_count(original); i++) {
         if (get_packet(original, i) -> packet_header -> orig_len >= size) {
@@ -175,15 +177,9 @@ int filter_from_to(
         uint8_t source_ip[4],
         uint8_t destination_ip[4])
 {
-    filtered -> header = malloc(sizeof(struct pcap_header_t));
-    if (filtered -> header == NULL) {
+    if (! init_copy_capture(original, filtered)) {
         return -1;
     }
-
-    memcpy(filtered -> header, original -> header, sizeof(struct pcap_header_t));
-
-    filtered -> first = NULL;
-    filtered -> last = NULL;
 
     for (size_t i = 0; i < packet_count(original); i++) {
         
@@ -214,11 +210,25 @@ int filter_from_mask(
         uint8_t network_prefix[4],
         uint8_t mask_length)
 {
-    UNUSED(original);
-    UNUSED(filtered);
-    UNUSED(network_prefix);
-    UNUSED(mask_length);
-    return -1;
+    if (! init_copy_capture(original, filtered)) {
+        return -1;
+    }
+
+    uint32_t mask = create_mask(mask_length);
+
+    for (size_t i = 0; i < packet_count(original); i++) {
+        uint32_t address = create_uint32_t(get_packet(original, i) -> ip_header -> src_addr);
+        uint32_t prefix = create_uint32_t(network_prefix);
+
+        if ((prefix & mask) == (address & mask)) {
+            if (!add_copy_node(filtered, get_packet(original, i))) {
+                destroy_capture(filtered);
+                return -1;
+            }
+        }
+    }
+    
+    return 0;
 }
 
 int filter_to_mask(
@@ -227,17 +237,164 @@ int filter_to_mask(
         uint8_t network_prefix[4],
         uint8_t mask_length)
 {
-    UNUSED(original);
-    UNUSED(filtered);
-    UNUSED(network_prefix);
-    UNUSED(mask_length);
-    return -1;
+    if (! init_copy_capture(original, filtered)) {
+        return -1;
+    }
+
+    uint32_t mask = create_mask(mask_length);
+
+    for (size_t i = 0; i < packet_count(original); i++) {
+        uint32_t address = create_uint32_t(get_packet(original, i) -> ip_header -> dst_addr);
+        uint32_t prefix = create_uint32_t(network_prefix);
+
+        if ((prefix & mask) == (address & mask)) {
+            if (!add_copy_node(filtered, get_packet(original, i))) {
+                destroy_capture(filtered);
+                return -1;
+            }
+        }
+    }
+    
+    return 0;
+}
+
+void print_ip(uint8_t* ip)
+{
+    printf("%u", ip[0]);
+    for (int i = 1; i < 4; i++) {
+        printf(".%u", ip[i]);
+    }
+}
+
+bool add_flow(const struct capture_t *const capture, struct linked_flow* flows,
+              uint8_t src[], uint8_t dst[])
+{   
+    struct flow_t* flow = malloc(sizeof(*flow));
+    if (flow == NULL) {
+        return false;
+    }
+
+    flow -> next = NULL;
+
+    flow -> capture = malloc(sizeof(struct capture_t));
+    if (flow -> capture == NULL) {
+        free(flow);
+        return false;
+    }
+
+    if (filter_from_to(capture, flow -> capture, src, dst) == -1) {
+        free(flow -> capture);
+        free(flow);
+        return false;
+    }
+
+    for (int i = 0; i < 4; i++) {
+        flow -> src[i] = src[i];
+        flow -> dst[i] = dst[i];
+    }
+
+    if (flows -> first == NULL) {
+        flows -> first = flow;
+    } else {
+        flows -> last -> next = flow;
+    }
+
+    flows -> last = flow;
+
+    return true;
+}
+
+bool flow_present(struct linked_flow* flows, uint8_t src[], uint8_t dst[])
+{
+    struct flow_t* flow = flows -> first;
+
+    while (flow != NULL) {
+
+        bool check = true;
+        for (int i = 0; i < 4; i++) {
+            if ((flow -> src)[i] != src[i]) {
+                check = false;
+                break;
+            }
+
+            if ((flow -> dst)[i] != dst[i]){
+                check = false;
+                break;
+            }
+        }
+
+        if (check) {
+            return true;
+        }
+
+        flow = flow -> next;
+    }
+
+    return false;
+}
+
+bool init_linked_flow(const struct capture_t *const capture, struct linked_flow* flows)
+{   
+    for (size_t i = 0; i < packet_count(capture); i++) {
+        uint8_t* src = get_packet(capture, i) -> ip_header -> src_addr;
+        uint8_t* dst = get_packet(capture, i) -> ip_header -> dst_addr;
+
+        if (flow_present(flows, src, dst)) {
+            continue;
+        }
+
+        if (! add_flow(capture, flows, src, dst)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void destroy_linked_flow(struct linked_flow* flows) {
+
+    struct flow_t* flow = flows -> first;
+
+    while (flow != NULL) {
+        struct flow_t* temp_flow = flow -> next;
+        destroy_capture(flow -> capture);
+        free(flow -> capture);
+        free(flow);
+        flow = temp_flow;
+
+    }
 }
 
 int print_flow_stats(const struct capture_t *const capture)
-{
-    UNUSED(capture);
-    return -1;
+{   
+    struct linked_flow* flows = malloc(sizeof(*flows));
+    if (flows == NULL) {
+        return -1;
+    }
+    flows -> first = NULL;
+    flows -> last = NULL;
+
+    if (! init_linked_flow(capture, flows)) {
+        free(flows);
+        return -1;
+    }
+
+    struct flow_t* flow = flows -> first;
+    while (flow != NULL) {
+
+        print_ip(flow -> src);
+        printf(" -> ");
+        print_ip(flow -> dst);
+        printf(" : %zu\n", packet_count(flow -> capture));
+
+        flow = flow -> next;
+
+    }
+
+    destroy_linked_flow(flows);
+    free(flows);
+
+    return 0;
 }
 
 int print_longest_flow(const struct capture_t *const capture)
@@ -339,4 +496,33 @@ uint32_t create_mask(uint8_t mask_length)
         mask += 1;
     }
     return mask <<= to_move;
+}
+
+bool init_copy_capture(const struct capture_t *const original, struct capture_t* copy)
+{
+    copy -> header = malloc(sizeof(struct pcap_header_t));
+    if (copy -> header == NULL) {
+        return false;
+    }
+
+    memcpy(copy -> header, original -> header, sizeof(struct pcap_header_t));
+
+    copy -> first = NULL;
+    copy -> last = NULL;
+
+    return true;
+}
+
+uint32_t create_uint32_t(uint8_t* address)
+{
+    uint32_t result = 0;
+
+    result |= address[0];
+
+    for (int i = 1; i < 4; i++) {
+        result <<= 8;
+        result |= address[i];
+    }
+
+    return result;
 }
