@@ -5,6 +5,7 @@
 #include "capture.h"
 
 #define UNUSED(x) ((void) x);
+#define MAX_VAL 4294967295
 
 void destroy_node(struct node_t* node);
 int add_node(struct pcap_context *, struct capture_t *);
@@ -545,7 +546,10 @@ bool add_copy_node(struct capture_t *capture, struct packet_t *packet) {
 }
 
 uint32_t create_mask(uint8_t mask_length)
-{
+{   
+    if (mask_length == 32) {
+        return MAX_VAL;
+    }
     int to_move = 31;
     uint32_t mask = 0;
 
