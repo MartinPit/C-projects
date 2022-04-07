@@ -1,7 +1,8 @@
-#include "capture.h"
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+
+#include "capture.h"
 
 #define UNUSED(x) ((void) x);
 
@@ -369,6 +370,7 @@ int print_flow_stats(const struct capture_t *const capture)
 {   
     struct linked_flow* flows = malloc(sizeof(*flows));
     if (flows == NULL) {
+        fwrite("Failed to allocate memory\n.", 27, 1, stderr);
         return -1;
     }
     flows -> first = NULL;
@@ -376,6 +378,7 @@ int print_flow_stats(const struct capture_t *const capture)
 
     if (! init_linked_flow(capture, flows)) {
         free(flows);
+        fwrite("Failed to allocate memory\n.", 27, 1, stderr);
         return -1;
     }
 
@@ -397,10 +400,68 @@ int print_flow_stats(const struct capture_t *const capture)
     return 0;
 }
 
+struct flow_t* find_longest_flow(const struct linked_flow *const flows)
+{
+    struct flow_t* longest = NULL;
+    uint32_t longest_sec = 0;
+    uint32_t longest_usec = 0;
+
+    struct flow_t* flow = flows -> first;
+
+    while (flow != NULL) {
+
+        uint32_t temp_sec = flow -> capture -> last -> packet -> packet_header -> ts_sec
+                   - flow -> capture -> first -> packet -> packet_header -> ts_sec;
+
+        uint32_t temp_usec = flow -> capture -> last -> packet -> packet_header -> ts_usec
+                   - flow -> capture -> first -> packet -> packet_header -> ts_usec;
+
+        if (temp_sec > longest_sec) {
+            longest = flow;
+            longest_sec = temp_sec;
+            longest_usec = temp_usec;
+        } else if (temp_usec > longest_usec) {
+            longest = flow;
+            longest_sec = temp_sec;
+            longest_usec = temp_usec;
+        }
+
+        flow = flow -> next;
+    }
+    return longest;
+}
+
 int print_longest_flow(const struct capture_t *const capture)
 {
-    UNUSED(capture);
-    return -1;
+    struct linked_flow* flows = malloc(sizeof(*flows));
+    if (flows == NULL) {
+        fwrite("Failed to allocate memory\n.", 27, 1, stderr);
+        return -1;
+    }
+    flows -> first = NULL;
+    flows -> last = NULL;
+
+    if (! init_linked_flow(capture, flows)) {
+        free(flows);
+        fwrite("Failed to allocate memory\n.", 27, 1, stderr);
+        return -1;
+    }
+
+    struct flow_t* longest = find_longest_flow(flows);
+
+    struct packet_header_t* start_hd = longest -> capture -> first -> packet -> packet_header;
+    struct packet_header_t* end_hd = longest -> capture -> last -> packet -> packet_header;
+
+    print_ip(longest -> src);
+    printf(" -> ");
+    print_ip(longest -> dst);
+    printf(" : %" PRIu32 ":%" PRIu32, start_hd -> ts_sec, start_hd -> ts_usec);
+    printf(" - %" PRIu32 ":%" PRIu32 "\n", end_hd -> ts_sec, end_hd -> ts_usec);
+
+    destroy_linked_flow(flows);
+    free(flows);
+
+    return 0;
 }
 
 struct node_t* initialize_node() 
@@ -485,15 +546,14 @@ bool add_copy_node(struct capture_t *capture, struct packet_t *packet) {
 
 uint32_t create_mask(uint8_t mask_length)
 {
-    int to_move = 32;
+    int to_move = 31;
     uint32_t mask = 0;
 
     while(mask_length != 0) {
+        mask += 1;
         mask <<= 1;
         to_move--;
         mask_length--;
-
-        mask += 1;
     }
     return mask <<= to_move;
 }
@@ -515,14 +575,6 @@ bool init_copy_capture(const struct capture_t *const original, struct capture_t*
 
 uint32_t create_uint32_t(uint8_t* address)
 {
-    uint32_t result = 0;
-
-    result |= address[0];
-
-    for (int i = 1; i < 4; i++) {
-        result <<= 8;
-        result |= address[i];
-    }
-
-    return result;
+    return (address[0] << 24) | (address[1] << 16) |
+                 (address[2] << 8) | address[3];
 }
