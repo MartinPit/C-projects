@@ -369,9 +369,15 @@ void destroy_linked_flow(struct linked_flow* flows) {
 
 int print_flow_stats(const struct capture_t *const capture)
 {   
+    if (capture -> first == NULL) {
+        fwrite("Given capture cannot be empty.\n", 31, 1, stderr);
+        return -1;
+    }
+
+
     struct linked_flow* flows = malloc(sizeof(*flows));
     if (flows == NULL) {
-        fwrite("Failed to allocate memory\n.", 27, 1, stderr);
+        fwrite("Failed to allocate memory.\n", 27, 1, stderr);
         return -1;
     }
     flows -> first = NULL;
@@ -379,7 +385,7 @@ int print_flow_stats(const struct capture_t *const capture)
 
     if (! init_linked_flow(capture, flows)) {
         free(flows);
-        fwrite("Failed to allocate memory\n.", 27, 1, stderr);
+        fwrite("Failed to allocate memory.\n", 28, 1, stderr);
         return -1;
     }
 
@@ -433,10 +439,15 @@ struct flow_t* find_longest_flow(const struct linked_flow *const flows)
 }
 
 int print_longest_flow(const struct capture_t *const capture)
-{
+{   
+    if (capture -> first == NULL) {
+        fwrite("Given capture cannot be empty.\n", 31, 1, stderr);
+        return -1;
+    }
+
     struct linked_flow* flows = malloc(sizeof(*flows));
     if (flows == NULL) {
-        fwrite("Failed to allocate memory\n.", 27, 1, stderr);
+        fwrite("Failed to allocate memory.\n", 27, 1, stderr);
         return -1;
     }
     flows -> first = NULL;
@@ -444,7 +455,7 @@ int print_longest_flow(const struct capture_t *const capture)
 
     if (! init_linked_flow(capture, flows)) {
         free(flows);
-        fwrite("Failed to allocate memory\n.", 27, 1, stderr);
+        fwrite("Failed to allocate memory.\n", 27, 1, stderr);
         return -1;
     }
 
