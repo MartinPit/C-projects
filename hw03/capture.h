@@ -3,22 +3,18 @@
 
 #include "pcap.h"
 
-struct node_t {
-    
+struct node_t
+{
     struct packet_t *packet;
     struct node_t *next;
-
 };
 
-
-struct capture_t {
-
+struct capture_t
+{
     struct pcap_header_t *header;
     struct node_t *first;
     struct node_t *last;
-
 };
-
 
 /**
  * @brief Loads entire capture from a pcap file
@@ -45,9 +41,8 @@ void destroy_capture(struct capture_t *capture);
  * 
  * @return pointer to the header stored in capture
  */
-const struct pcap_header_t* get_header(
-    const struct capture_t *const capture
-);
+const struct pcap_header_t *get_header(
+        const struct capture_t *const capture);
 
 /**
  * @brief Get the packet on a given index
@@ -58,10 +53,9 @@ const struct pcap_header_t* get_header(
  * @return pointer to the index-th packed stored in capture
  *         NULL in case of invalid index
  */
-struct packet_t* get_packet(
-    const struct capture_t *const capture,
-    size_t index
-);
+struct packet_t *get_packet(
+        const struct capture_t *const capture,
+        size_t index);
 
 /**
  * @brief Calculates the number of packets stored in the capture
@@ -83,7 +77,6 @@ size_t packet_count(const struct capture_t *const capture);
  */
 size_t data_transfered(const struct capture_t *const capture);
 
-
 /**
  * @brief Filters packets with given protocol
  * 
@@ -94,10 +87,9 @@ size_t data_transfered(const struct capture_t *const capture);
  * @return 0 in case of success, non-zero return code otherwise 
  */
 int filter_protocol(
-    const struct capture_t *const original,
-    struct capture_t *filtered,
-    uint8_t protocol
-);
+        const struct capture_t *const original,
+        struct capture_t *filtered,
+        uint8_t protocol);
 
 /**
  * @brief Filters packets with at least given size
@@ -109,10 +101,9 @@ int filter_protocol(
  * @return 0 in case of success, non-zero return code otherwise 
  */
 int filter_larger_than(
-    const struct capture_t *const original,
-    struct capture_t *filtered,
-    uint32_t size
-);
+        const struct capture_t *const original,
+        struct capture_t *filtered,
+        uint32_t size);
 
 /**
  * @brief Filters packets with given source and destination addresses
@@ -125,11 +116,10 @@ int filter_larger_than(
  * @return 0 in case of success, non-zero return code otherwise 
  */
 int filter_from_to(
-    const struct capture_t *const original,
-    struct capture_t *filtered,
-    uint8_t source_ip[4],
-    uint8_t destination_ip[4]
-);
+        const struct capture_t *const original,
+        struct capture_t *filtered,
+        uint8_t source_ip[4],
+        uint8_t destination_ip[4]);
 
 /**
  * @brief Filters packets with source address conforming to given mask
@@ -148,8 +138,7 @@ int filter_from_mask(
         const struct capture_t *const original,
         struct capture_t *filtered,
         uint8_t mask_address[4],
-        uint8_t mask_length
-);
+        uint8_t mask_length);
 
 /**
  * @brief Filters packets with destination address conforming to given mask
@@ -168,8 +157,7 @@ int filter_to_mask(
         const struct capture_t *const original,
         struct capture_t *filtered,
         uint8_t mask_address[4],
-        uint8_t mask_length
-);
+        uint8_t mask_length);
 
 /**
  * @brief Print stats about every flow in the form:

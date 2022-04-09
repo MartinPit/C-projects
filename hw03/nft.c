@@ -1,13 +1,12 @@
-#include <stdlib.h>
 #include <inttypes.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "capture.h"
 
-int parse_input(char* argv, uint8_t ip[4], uint8_t* mask)
+int parse_input(char *argv, uint8_t ip[4], uint8_t *mask)
 {
-    int result = sscanf(argv, "%" SCNu8 ".%" SCNu8 ".%" SCNu8 ".%" SCNu8 "/%" SCNu8,
-           &ip[0], &ip[1], &ip[2], &ip[3], mask);
+    int result = sscanf(argv, "%" SCNu8 ".%" SCNu8 ".%" SCNu8 ".%" SCNu8 "/%" SCNu8, &ip[0], &ip[1], &ip[2], &ip[3], mask);
 
     if (result == EOF) {
         return -1;
@@ -20,21 +19,20 @@ int parse_input(char* argv, uint8_t ip[4], uint8_t* mask)
     return 0;
 }
 
-bool nft(char* file, uint8_t src_ip[4], uint8_t dst_ip[4], 
-         uint8_t* src_mask, uint8_t* dst_mask, char* mode)
+bool nft(char *file, uint8_t src_ip[4], uint8_t dst_ip[4], uint8_t *src_mask, uint8_t *dst_mask, char *mode)
 {
-    struct capture_t* capture = malloc (sizeof(struct capture_t));
+    struct capture_t *capture = malloc(sizeof(struct capture_t));
     if (capture == NULL) {
         return false;
     }
 
-    struct capture_t* filtered = malloc(sizeof(struct capture_t));
+    struct capture_t *filtered = malloc(sizeof(struct capture_t));
     if (capture == NULL) {
         free(capture);
         return false;
     }
 
-    struct capture_t* final = malloc(sizeof(struct capture_t));
+    struct capture_t *final = malloc(sizeof(struct capture_t));
     if (capture == NULL) {
         free(capture);
         free(filtered);
@@ -66,7 +64,7 @@ bool nft(char* file, uint8_t src_ip[4], uint8_t dst_ip[4],
     }
 
     int result = -1;
-    if (! strcmp(mode, "flowstats")) {
+    if (!strcmp(mode, "flowstats")) {
         result = print_flow_stats(final);
     } else {
         result = print_longest_flow(final);
@@ -98,8 +96,8 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    uint8_t src_ip[4] = {0};
-    uint8_t dst_ip[4] = {0};
+    uint8_t src_ip[4] = { 0 };
+    uint8_t dst_ip[4] = { 0 };
     uint8_t src_mask = 0;
     uint8_t dst_mask = 0;
 
@@ -132,7 +130,7 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    if (! nft(argv[1], src_ip, dst_ip, &src_mask, &dst_mask, argv[4])) {
+    if (!nft(argv[1], src_ip, dst_ip, &src_mask, &dst_mask, argv[4])) {
         return EXIT_FAILURE;
     }
 
