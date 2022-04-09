@@ -30,7 +30,6 @@ int load_capture(struct capture_t *capture, const char *filename)
     struct pcap_context context;
 
     if (init_context(&context, filename) == PCAP_LOAD_ERROR) {
-        destroy_context(&context);
         return -1;
     }
 
@@ -42,7 +41,7 @@ int load_capture(struct capture_t *capture, const char *filename)
 
     if (load_header(&context, capture -> header) == PCAP_LOAD_ERROR) {
         destroy_context(&context);
-        destroy_capture(capture);
+        free(capture -> header);
         return -1;
     }
 
@@ -409,11 +408,14 @@ int print_flow_stats(const struct capture_t *const capture)
 
 struct flow_t* find_longest_flow(const struct linked_flow *const flows)
 {
-    struct flow_t* longest = NULL;
-    uint32_t longest_sec = 0;
-    uint32_t longest_usec = 0;
+    struct flow_t* longest = flows -> first;
+    uint32_t longest_sec = longest -> capture -> last -> packet -> packet_header -> ts_sec
+                   - longest -> capture -> first -> packet -> packet_header -> ts_sec;
+                   
+    uint32_t longest_usec = longest -> capture -> last -> packet -> packet_header -> ts_usec
+                   - longest -> capture -> first -> packet -> packet_header -> ts_usec;
 
-    struct flow_t* flow = flows -> first;
+    struct flow_t* flow = flows -> first -> next;
 
     while (flow != NULL) {
 
@@ -427,7 +429,9 @@ struct flow_t* find_longest_flow(const struct linked_flow *const flows)
             longest = flow;
             longest_sec = temp_sec;
             longest_usec = temp_usec;
-        } else if (temp_usec > longest_usec) {
+        }
+        
+        if (temp_sec == longest_sec && temp_usec > longest_usec) {
             longest = flow;
             longest_sec = temp_sec;
             longest_usec = temp_usec;
