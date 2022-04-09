@@ -75,8 +75,6 @@ bool nft(char *file, uint8_t src_ip[4], uint8_t dst_ip[4], uint8_t *src_mask, ui
         return false;
     }
 
-    size_t count = packet_count(filtered); 
-    count = packet_count(final);
     int result = -1;
     if (!strcmp(mode, "flowstats")) {
         result = print_flow_stats(final);
