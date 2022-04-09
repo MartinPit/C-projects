@@ -1,0 +1,67 @@
+image: cxx:v2020.0.1
+
+test:
+  tags:
+    - shared-fi
+  stage: test
+  only:
+    changes:
+      - 'hw*/**/*.c'
+      - 'hw*/**/*.h'
+
+  script:
+    - |
+          changed_dirs() {
+              git diff-tree --no-commit-id --name-only -r ${CI_COMMIT_SHA} \
+                  | grep -E '^hw' | grep '/' | cut -d '/' -f 1 | sort | uniq
+          }
+
+          run_tests() {
+              # Configure and compile tests.
+              if ! cmake -B build -S . || ! make -C build tests; then
+                  echo "Cannot compile the solution" >&2
+                  exit 1
+              fi
+
+              # Run tests with valgrind.
+              if ! valgrind --trace-children=yes --track-fds=yes \
+                      --error-exitcode=255 --log-file=valgrind.log \
+                      --leak-check=full --show-leak-kinds=all \
+                      build/tests; then
+                  echo "Tests failed or valgrind complains" >&2
+                  exit 1
+              fi
+
+              # Check valgrind logs for errors.
+              if grep 'ERROR SUMMARY' valgrind.log | grep -v '0 errors'; then
+                  echo "Valgrind found errors" >&2
+                  exit 1
+              fi
+
+              # Check valgrind logs for unreleased memory.
+              if grep -E '[0-9]+ bytes in [0-9]+ blocks are' valgrind.log; then
+                  echo "Valgrind found unreleased memory" >&2
+                  exit 1
+              fi
+
+              # Check valgrind logs for open file descriptors.
+              if grep 'Open file descriptor [0-9]+' valgrind.log; then
+                  echo "Valgrind found open descriptors" >&2
+                  exit 1
+              fi
+          }
+
+          changed_dirs_count=$(changed_dirs | wc -l)
+
+          if [ "${changed_dirs_count}" -eq 0 ]; then
+              echo "No directories changed"
+              exit 1
+          fi
+
+          for hwdir in $(changed_dirs); do
+              echo "**** Testing ${hwdir}"
+
+              pushd ${hwdir}
+              run_tests
+              popd
+          done
