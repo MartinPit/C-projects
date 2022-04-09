@@ -1,6 +1,7 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "capture.h"
 
@@ -20,15 +21,22 @@ int parse_input(char *argv, uint8_t ip[4], uint8_t *mask)
 }
 
 bool nft(char *file, uint8_t src_ip[4], uint8_t dst_ip[4], uint8_t *src_mask, uint8_t *dst_mask, char *mode)
-{
+{   
+    if (access(file, R_OK)) {
+        fprintf(stderr, "File doesn't exist.\n");
+        return false;
+    }
+
     struct capture_t *capture = malloc(sizeof(struct capture_t));
     if (capture == NULL) {
+        fprintf(stderr, "Failed to allocate memory.\n");
         return false;
     }
 
     struct capture_t *filtered = malloc(sizeof(struct capture_t));
     if (capture == NULL) {
         free(capture);
+        fprintf(stderr, "Failed to allocate memory.\n");
         return false;
     }
 
@@ -36,6 +44,7 @@ bool nft(char *file, uint8_t src_ip[4], uint8_t dst_ip[4], uint8_t *src_mask, ui
     if (capture == NULL) {
         free(capture);
         free(filtered);
+        fprintf(stderr, "Failed to allocate memory.\n");
         return false;
     }
 
@@ -43,6 +52,7 @@ bool nft(char *file, uint8_t src_ip[4], uint8_t dst_ip[4], uint8_t *src_mask, ui
         free(capture);
         free(filtered);
         free(final);
+        fprintf(stderr, "Failed to load capture.\n");
         return false;
     }
 
@@ -51,6 +61,7 @@ bool nft(char *file, uint8_t src_ip[4], uint8_t dst_ip[4], uint8_t *src_mask, ui
         free(capture);
         free(filtered);
         free(final);
+        fprintf(stderr, "Failed to filter capture.\n");
         return false;
     }
 
@@ -60,9 +71,12 @@ bool nft(char *file, uint8_t src_ip[4], uint8_t dst_ip[4], uint8_t *src_mask, ui
         free(capture);
         free(filtered);
         free(final);
+        fprintf(stderr, "Failed to filter capture.\n");
         return false;
     }
 
+    size_t count = packet_count(filtered); 
+    count = packet_count(final);
     int result = -1;
     if (!strcmp(mode, "flowstats")) {
         result = print_flow_stats(final);

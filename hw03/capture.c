@@ -142,7 +142,8 @@ int filter_protocol(
         return -1;
     }
 
-    for (size_t i = 0; i < packet_count(original); i++) {
+    size_t count = packet_count(original);
+    for (size_t i = 0; i < count; i++) {
         if (get_packet(original, i)->ip_header->protocol == protocol) {
             if (!add_copy_node(filtered, get_packet(original, i))) {
                 destroy_capture(filtered);
@@ -162,7 +163,8 @@ int filter_larger_than(
         return -1;
     }
 
-    for (size_t i = 0; i < packet_count(original); i++) {
+    size_t count = packet_count(original);
+    for (size_t i = 0; i < count; i++) {
         if (get_packet(original, i)->packet_header->orig_len >= size) {
             if (!add_copy_node(filtered, get_packet(original, i))) {
                 destroy_capture(filtered);
@@ -183,7 +185,8 @@ int filter_from_to(
         return -1;
     }
 
-    for (size_t i = 0; i < packet_count(original); i++) {
+    size_t count = packet_count(original);
+    for (size_t i = 0; i < count; i++) {
         bool approved = true;
         uint8_t *src = get_packet(original, i)->ip_header->src_addr;
         uint8_t *dest = get_packet(original, i)->ip_header->dst_addr;
@@ -217,7 +220,8 @@ int filter_from_mask(
 
     uint32_t mask = create_mask(mask_length);
 
-    for (size_t i = 0; i < packet_count(original); i++) {
+    size_t count = packet_count(original);
+    for (size_t i = 0; i < count; i++) {
         uint32_t address = create_uint32_t(get_packet(original, i)->ip_header->src_addr);
         uint32_t prefix = create_uint32_t(network_prefix);
 
@@ -244,7 +248,8 @@ int filter_to_mask(
 
     uint32_t mask = create_mask(mask_length);
 
-    for (size_t i = 0; i < packet_count(original); i++) {
+    size_t count = packet_count(original);
+    for (size_t i = 0; i < count; i++) {
         uint32_t address = create_uint32_t(get_packet(original, i)->ip_header->dst_addr);
         uint32_t prefix = create_uint32_t(network_prefix);
 
@@ -271,6 +276,7 @@ bool add_flow(const struct capture_t *const capture, struct linked_flow *flows, 
 {
     struct flow_t *flow = malloc(sizeof(*flow));
     if (flow == NULL) {
+        fprintf(stderr, "Failed to allocate memory.\n");
         return false;
     }
 
@@ -279,6 +285,7 @@ bool add_flow(const struct capture_t *const capture, struct linked_flow *flows, 
     flow->capture = malloc(sizeof(struct capture_t));
     if (flow->capture == NULL) {
         free(flow);
+        fprintf(stderr, "Failed to allocate memory.\n");
         return false;
     }
 
@@ -333,8 +340,9 @@ bool flow_present(struct linked_flow *flows, uint8_t src[], uint8_t dst[])
 }
 
 bool init_linked_flow(const struct capture_t *const capture, struct linked_flow *flows)
-{
-    for (size_t i = 0; i < packet_count(capture); i++) {
+{   
+    size_t count = packet_count(capture);
+    for (size_t i = 0; i < count; i++) {
         uint8_t *src = get_packet(capture, i)->ip_header->src_addr;
         uint8_t *dst = get_packet(capture, i)->ip_header->dst_addr;
 
@@ -365,11 +373,6 @@ void destroy_linked_flow(struct linked_flow *flows)
 
 int print_flow_stats(const struct capture_t *const capture)
 {
-    if (capture->first == NULL) {
-        fwrite("Given capture cannot be empty.\n", 31, 1, stderr);
-        return -1;
-    }
-
     struct linked_flow *flows = malloc(sizeof(*flows));
     if (flows == NULL) {
         fwrite("Failed to allocate memory.\n", 27, 1, stderr);
@@ -536,6 +539,7 @@ bool add_copy_node(struct capture_t *capture, struct packet_t *packet)
 
     if (copy_packet(packet, node->packet) == PCAP_LOAD_ERROR) {
         destroy_node(node);
+
         return false;
     }
 
