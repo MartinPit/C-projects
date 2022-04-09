@@ -21,7 +21,7 @@ int parse_input(char *argv, uint8_t ip[4], uint8_t *mask)
 }
 
 bool nft(char *file, uint8_t src_ip[4], uint8_t dst_ip[4], uint8_t *src_mask, uint8_t *dst_mask, char *mode)
-{   
+{
     if (access(file, R_OK)) {
         fprintf(stderr, "File doesn't exist.\n");
         return false;

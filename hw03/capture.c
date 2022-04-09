@@ -340,7 +340,7 @@ bool flow_present(struct linked_flow *flows, uint8_t src[], uint8_t dst[])
 }
 
 bool init_linked_flow(const struct capture_t *const capture, struct linked_flow *flows)
-{   
+{
     size_t count = packet_count(capture);
     for (size_t i = 0; i < count; i++) {
         uint8_t *src = get_packet(capture, i)->ip_header->src_addr;
