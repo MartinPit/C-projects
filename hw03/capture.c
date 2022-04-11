@@ -94,6 +94,10 @@ struct packet_t *get_packet(
         return NULL;
     }
 
+    if (packet_count(capture) == 0) {
+        return NULL;
+    }
+
     struct node_t *node = capture->first;
     size_t count = 0;
 
