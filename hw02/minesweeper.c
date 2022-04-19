@@ -100,31 +100,26 @@ bool set_cell(uint16_t *cell, char val)
 int load_board(size_t rows, size_t cols, uint16_t board[rows][cols])
 {
     size_t count = 0;
-    bool eof = false;
 
-    for (size_t i = 0; i < rows; i++) {
-        for (size_t j = 0; j < cols; j++) {
+    for (size_t row = 0; row < rows; row++) {
+        for (size_t col = 0; col < cols; col++) {
             uint16_t cell = 0;
             int val = getchar();
 
             if (isspace(val)) {
-                j--;
+                col--;
                 continue;
             }
             if (val == EOF) {
-                eof = true;
-                break;
+                return -1;
             }
 
             if (set_cell(&cell, val)) {
                 count++;
-                board[i][j] = cell;
+                board[row][col] = cell;
             } else {
-                j--;
+                col--;
             }
-        }
-        if (eof) {
-            break;
         }
     }
 
@@ -164,20 +159,7 @@ int postprocess(size_t rows, size_t cols, uint16_t board[rows][cols])
                 }
                 continue;
             }
-            if (*cell == UNKNOWN + HIDDEN + FLAG) {
-                *cell = (check_around(i, j, rows, cols, board)) + HIDDEN + FLAG;
-                continue;
-            }
-
-            if (*cell == UNKNOWN + HIDDEN) {
-                *cell = (check_around(i, j, rows, cols, board)) + HIDDEN;
-                continue;
-            }
-
-            if (*cell == UNKNOWN) {
-                *cell = (check_around(i, j, rows, cols, board));
-                continue;
-            }
+            *cell = (*cell - UNKNOWN) + (check_around(i, j, rows, cols, board));
         }
     }
 
@@ -282,25 +264,27 @@ void print_row(size_t rows, size_t cols, uint16_t board[rows][cols], int row_num
     for (size_t i = 0; i < cols; i++) {
         char val = show_cell(board[row_number][i]);
 
+        putchar('|');
+
         switch (val) {
         case 'M':
-            printf("| M ");
+            printf(" M ");
             break;
 
         case 'X':
-            printf("|XXX");
+            printf("XXX");
             break;
 
         case 'F':
-            printf("|_F_");
+            printf("_F_");
             break;
 
         case ' ':
-            printf("|   ");
+            printf("   ");
             break;
 
         default:
-            printf("| %c ", val);
+            printf(" %c ", val);
             break;
         }
     }
@@ -314,20 +298,7 @@ void print_row(size_t rows, size_t cols, uint16_t board[rows][cols], int row_num
 
 int reveal_cell(size_t rows, size_t cols, uint16_t board[rows][cols], size_t row, size_t col)
 {
-    if (row > rows - 1 || col > cols - 1) {
-        return -1;
-    }
-
-    if (is_revealed(board[row][col]) || is_flag(board[row][col])) {
-        return -1;
-    }
-
-    if (board[row][col] == UNKNOWN || board[row][col] == UNKNOWN + HIDDEN) {
-        return -1;
-    }
-
-    if ((board[row][col] > 21 && board[row][col] < 50) ||
-            board[row][col] > 71) { // if it's a undefined value
+    if (row > rows - 1 || col > cols - 1 || is_revealed(board[row][col]) || is_flag(board[row][col]) || (board[row][col] > 21 && board[row][col] < 50) || board[row][col] > 71) { //if it's an undefined value
         return -1;
     }
 
@@ -342,19 +313,7 @@ int reveal_cell(size_t rows, size_t cols, uint16_t board[rows][cols], size_t row
 
 int reveal_single(uint16_t *cell)
 {
-    if (cell == NULL) {
-        return -1;
-    }
-
-    if (is_revealed(*cell) || is_flag(*cell)) {
-        return -1;
-    }
-
-    if (*cell == UNKNOWN || *cell == UNKNOWN + HIDDEN) {
-        return -1;
-    }
-
-    if ((*cell > 21 && *cell < 50) || *cell > 71) { // if it's a undefined value
+    if (cell == NULL || is_revealed(*cell) || is_flag(*cell) || (*cell > 21 && *cell < 50) || *cell > 71) { //if it's an undefined value
         return -1;
     }
 
@@ -371,11 +330,7 @@ void reveal_floodfill(size_t rows, size_t cols, uint16_t board[rows][cols], size
 {
     for (int i = -1; i < 2; i++) {
         for (int j = -1; j < 2; j++) {
-            if ((row == 0 && i == -1) || (col == 0 && j == -1)) {
-                continue;
-            }
-
-            if ((row == rows - 1 && i == 1) || (col == cols - 1 && j == 1)) {
+            if ((row == 0 && i == -1) || (col == 0 && j == -1) || (row == rows - 1 && i == 1) || (col == cols - 1 && j == 1)) {
                 continue;
             }
 
