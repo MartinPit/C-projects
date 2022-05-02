@@ -1,26 +1,44 @@
-#include "sample_printer.h"
-
-#include <stdlib.h>
-#include <stdio.h>
+#include "export_perms.h"
+#include "import_perms.h"
 
 #define UNUSED(x) ((void) x)
 
+int export_perms(char* directory, char* filepath)
+{
+    save_perms(directory, filepath);
+
+    return 0;
+}
+
 int main(int argc, char** argv) {
-    if (argc != 2) {
-        // TODO: Parse the -e and -i options.
-        fprintf(stderr, "The PERMISSIONS_FILE argument is required.");
-        return EXIT_FAILURE;
+    if (argc < 3 || argc > 4) {
+        perror("Incorrect amount of arguments.");
+        printf("Aguments should be: <-e/-i> <PERMISSIONS_FILE> [DIRECTORY_TO_CHECK]\n");
+    }
+    char *directory = NULL;
+    if (argc < 4) {
+        directory = getcwd(NULL, 0);
+
+    } else {
+        directory = argv[3];
     }
 
-    FILE* permissions_file = fopen(argv[1], "w");
-    if (!permissions_file) {
-        perror("fopen");
-        return EXIT_FAILURE;
+    char* filepath = argv[2];
+    int result;
+    printf("%s %s\n", directory, filepath);
+
+    if (strcmp(argv[1], "-e") == 0) {
+        result = export_perms(directory, filepath);
+    } else if (strcmp(argv[1], "-i") == 0) {
+        result = import_perms(directory, filepath);
+    } else {
+        result = EXIT_FAILURE;
+        fprintf(stderr, "Invalid option flag: %s\n", argv[1]);
     }
 
-    print_sample_output(permissions_file);
+    if (argc < 4) {
+        free(directory);
+    }
 
-    fclose(permissions_file);
-
-    return EXIT_SUCCESS;
+    return result;
 }
