@@ -10,21 +10,10 @@
 #include <pwd.h>
 #include <grp.h>
 #include <fcntl.h>
+#include <dirent.h>
 
-// typedef struct file_info
-// {
-//     char* path[_PC_PATH_MAX];
-//     char* owner[NAME];
-//     char* group[_PC_]
-//     char* flags[3];
-//     char* user_perms[3];
-//     char* group_perms[3];
-//     char* other_perms[3];
-// } file_info;
-
-
-int save_perms(char* path, char* save_file);
-// int init_info(file_info* info);
-// int fill_info(file_info* info,char* directory);
+int save_perms(char* path, char* save_file, char* path_to_print);
+int traverse_dirs(char* path, char* save_file, char* path_to_print);
+void free_remaining(struct dirent **dirs, int amount, int position);
 
 #endif

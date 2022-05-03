@@ -17,50 +17,50 @@ void get_flags(mode_t mode, char* array)
 
 void get_user_perms(mode_t mode, char* array)
 {
-    if ((mode & S_IRWXU) == S_IRUSR) {
+    if (mode & S_IRUSR) {
         array[0] = 'r';
     }
 
-    if ((mode & S_IRWXU) == S_IWUSR) {
+    if (mode & S_IWUSR) {
         array[1] = 'w';
     }
 
-    if ((mode & S_IRWXU) == S_IXUSR) {
+    if (mode & S_IXUSR) {
         array[2] = 'x';
     }
 }
 
 void get_group_perms(mode_t mode, char* array)
 {
-    if ((mode & S_IRWXG) == S_IRGRP) {
+    if (mode & S_IRGRP) {
         array[0] = 'r';
     }
 
-    if ((mode & S_IRWXG) == S_IWGRP) {
+    if (mode & S_IWGRP) {
         array[1] = 'w';
     }
 
-    if ((mode & S_IRWXG) == S_IXGRP) {
+    if (mode & S_IXGRP) {
         array[2] = 'x';
     }
 }
 
 void get_other_perms(mode_t mode, char* array)
 {
-    if ((mode & S_IRWXO) == S_IROTH) {
+    if (mode & S_IROTH) {
         array[0] = 'r';
     }
 
-    if ((mode & S_IRWXO) == S_IWOTH) {
+    if (mode & S_IWOTH) {
         array[1] = 'w';
     }
 
-    if ((mode & S_IRWXO) == S_IXOTH) {
+    if (mode & S_IXOTH) {
         array[2] = 'x';
     }
 }
 
-int save_perms(char* path, char* save_file)
+int save_perms(char* path, char* save_file, char* path_to_print)
 {
     struct stat st;
 
@@ -90,30 +90,80 @@ int save_perms(char* path, char* save_file)
         return 1;
     }
 
-    char flags[3] = {'-'};
-    char user_perms[3] = {'-'};
-    char group_perms[3] = {'-'};
-    char other_perms[3] = {'-'};
+    char flags[4] = {'-', '-', '-'};
+    char user_perms[4] = {'-', '-', '-'};
+    char group_perms[4] = {'-', '-', '-'};
+    char other_perms[4] = {'-', '-', '-'};
 
     get_flags(st.st_mode, flags);
     get_user_perms(st.st_mode, user_perms);
     get_group_perms(st.st_mode, group_perms);
     get_other_perms(st.st_mode, other_perms);
 
-    fprintf(file, "# file: %s\n", path);
+    fprintf(file, "# file: %s\n", path_to_print);
     fprintf(file, "# owner: %s\n", pw -> pw_name);
     fprintf(file, "# group: %s\n", grp -> gr_name);
 
-    if (user_perms[0] != '-' ||
-        user_perms[1] != '-' ||
-        user_perms[2] != '-') {
+    if (flags[0] != '-' ||
+        flags[1] != '-' ||
+        flags[2] != '-') {
         fprintf(file, "# flags: %3s\n", flags);
     }
-    fprintf(file, "user::%c%c%c\n", user_perms[0], user_perms[1], user_perms[2]);
-    fprintf(file, "group::%3s\n", group_perms);
-    fprintf(file, "other::%3s\n", other_perms);
+
+    fprintf(file, "user::%s\n", user_perms);
+    fprintf(file, "group::%s\n", group_perms);
+    fprintf(file, "other::%s\n", other_perms);
     fprintf(file, "\n");
 
     fclose(file);
+    return 0;
+}
+
+void free_remaining(struct dirent **dirs, int amount, int position)
+{
+    for (int i = position; i < amount; i++) {
+        free(dirs[i]);
+    }
+}
+
+int traverse_dirs(char* path, char* save_file, char* path_to_print)
+{
+    if (save_perms(path, save_file, path_to_print) == 1) {
+        return 1;
+    }
+
+    struct dirent **dirs = NULL;
+    int dir_amount = scandir(path, &dirs, NULL, alphasort);
+
+    for (int i = 0; i < dir_amount; i++) {
+        char *name = dirs[i] -> d_name;
+        if (! strcmp(".", name) || ! strcmp("..", name)) {
+            free(dirs[i]);
+            continue;
+        }
+
+        char *next = malloc(strlen(path) + strlen(name) + 2);
+        sprintf(next, "%s/%s", path, name);
+        struct stat st;
+
+        char *new_name = malloc(strlen(path_to_print) + strlen(name) + 2);
+        sprintf(new_name, "%s/%s", path_to_print, name);
+
+        if (stat(next, &st) == -1) {
+            perror("Failed to initialize stat.");
+            free_remaining(dirs, dir_amount, i);
+            free(dirs);
+            return 1;
+        }
+
+        if (S_ISDIR(st.st_mode)) {
+            traverse_dirs(next, save_file, new_name);
+        }
+        free(next);
+        free(new_name);
+        free(dirs[i]);
+    }
+    free(dirs);
+
     return 0;
 }
