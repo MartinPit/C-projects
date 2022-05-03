@@ -5,42 +5,12 @@
 
 int export_perms(char* path, char* save_file)
 {
-    if (save_perms(path, save_file, ".") == 1) {
+    if (save_perms(path, save_file, ".") == 1) { //* print the first folder in a special way
+                                                 //* with "." as a path to show
         return 1;
     }
 
-    struct dirent **dirs = NULL;
-    int dir_amount = scandir(path, &dirs, NULL, alphasort);
-
-    for (int i = 0; i < dir_amount; i++) {
-        char* name = dirs[i] -> d_name;
-
-        if (! strcmp(".", name) || ! strcmp("..", name)) {
-            free(dirs[i]);
-            continue;
-        }
-
-        char *next = malloc(strlen(path) + strlen(name) + 2);
-        sprintf(next, "%s/%s", path, name);
-        struct stat st;
-
-        if (stat(next, &st) == -1) {
-            perror("Failed to initialize stat.");
-            free_remaining(dirs, dir_amount, i);
-            free(dirs);
-            return 1;
-        }
-
-        if (S_ISDIR(st.st_mode)) {
-            traverse_dirs(next, save_file, name);
-        } else {
-            save_perms(next, save_file, name);
-        }
-
-        free(dirs[i]);
-    }
-    free(dirs);
-    return 0;
+    return traverse_dirs(path, save_file, "");
 }
 
 int main(int argc, char** argv) {
@@ -59,7 +29,6 @@ int main(int argc, char** argv) {
 
     char* filepath = argv[2];
     int result;
-    printf("%s %s\n", directory, filepath);
 
     if (strcmp(argv[1], "-e") == 0) {
         result = export_perms(directory, filepath);
