@@ -80,12 +80,41 @@ void free_remaining(struct dirent **dirs, int amount, int position)
     for (int i = position; i < amount; i++) {
         free(dirs[i]);
     }
+
+    free(dirs);
+}
+
+int is_dir(const struct dirent *file)
+{   
+    return file -> d_type == DT_DIR ? 1 : 0;
+}
+
+int is_file(const struct dirent *file)
+{   
+    return file -> d_type == DT_REG ? 1 : 0;
+}
+
+char* get_new_name(char* path, char* name)
+{
+    char *new_name = malloc(strlen(path) + strlen(name) + 2);
+        if (new_name == NULL) {
+            perror("Malloc failure.");
+            return NULL;
+        }
+
+    if (! strcmp("", path)) {
+            strcpy(new_name, name);
+    } else {
+            sprintf(new_name, "%s/%s", path, name); //* adds the name of the folder/file to the path
+    }
+
+    return new_name;
 }
 
 int traverse_dirs(char* path, char* save_file, char* path_to_print)
 {
     struct dirent **dirs = NULL;
-    int dir_amount = scandir(path, &dirs, NULL, alphasort);
+    int dir_amount = scandir(path, &dirs, is_dir, alphasort);
 
     if (dir_amount == -1) {
         perror("Could not scan files in subdirectory.");
@@ -100,40 +129,32 @@ int traverse_dirs(char* path, char* save_file, char* path_to_print)
             continue;
         }
 
-        char *next = malloc(strlen(path) + strlen(name) + 2);
+        char* next = get_new_name(path, name);
         if (next == NULL) {
-            perror("Malloc failure.");
-            goto error_handling;
+            perror("Failed to allocate memory.");
+            free_remaining(dirs, dir_amount, i);
+            return 1;
         }
-
-        sprintf(next, "%s/%s", path, name); //* adds the name of the folder/file to the path
-        struct stat st;
-
-        char *new_name = malloc(strlen(path_to_print) + strlen(name) + 2);
+        char* new_name = get_new_name(path_to_print, name);
         if (new_name == NULL) {
-            perror("Malloc failure.");
-            goto error_handling;
-        }
-
-        if (! strcmp("", path_to_print)) {
-            strcpy(new_name, name);
-        } else {
-            sprintf(new_name, "%s/%s", path_to_print, name);
-        }
-
-        if (lstat(next, &st) == -1) {
-            perror("Failed to initialize stat.");
-            goto error_handling;
+            perror("Failed to allocate memory.");
+            free_remaining(dirs, dir_amount, i);
+            free(next);
+            return 1;
         }
 
         if (save_perms(next, save_file, new_name) == 1) {
-            goto error_handling;
+            free_remaining(dirs, dir_amount, i);
+            free(next);
+            free(new_name);
+            return 1;
         }
 
-        if (S_ISDIR(st.st_mode)) {
-            if (traverse_dirs(next, save_file, new_name) == 1) {
-                goto error_handling;
-            }
+        if (traverse_dirs(next, save_file, new_name) == 1) {
+            free_remaining(dirs, dir_amount, i);
+            free(next);
+            free(new_name);
+            return 1;
         }
 
         free(next);
@@ -141,12 +162,43 @@ int traverse_dirs(char* path, char* save_file, char* path_to_print)
         free(dirs[i]);
     }
     free(dirs);
+    struct dirent **files = NULL;
+    int file_amount = scandir(path, &files, is_file, alphasort);
+
+    if (file_amount == -1) {
+        perror("Could not scan files in subdirectory.");
+        return 1;
+    }
+
+    for (i = 0; i < file_amount; i++) {
+        char *name = files[i] -> d_name;
+        
+        char* next = get_new_name(path, name);
+        if (next == NULL) {
+            perror("Failed to allocate memory.");
+            free_remaining(files, file_amount, i);
+            return 1;
+        }
+        char* new_name = get_new_name(path_to_print, name);
+        if (new_name == NULL) {
+            perror("Failed to allocate memory.");
+            free_remaining(files, file_amount, i);
+            free(next);
+            return 1;
+        }
+
+        if (save_perms(next, save_file, new_name) == 1) {
+            free_remaining(files, file_amount, i);
+            free(next);
+            free(new_name);
+            return 1;
+        }
+
+        free(next);
+        free(new_name);
+        free(files[i]);
+    }
+    free(files);
 
     return 0;
-
-error_handling:
-    free_remaining(dirs, dir_amount, i);
-    free(dirs);
-    return 1;
-
 }
