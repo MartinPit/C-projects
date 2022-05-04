@@ -1,7 +1,6 @@
 #include "export_perms.h"
 #include "import_perms.h"
-
-#define UNUSED(x) ((void) x)
+#include <getopt.h>
 
 int export_perms(char* path, char* save_file)
 {
@@ -14,34 +13,41 @@ int export_perms(char* path, char* save_file)
 }
 
 int main(int argc, char** argv) {
-    if (argc < 3 || argc > 4) {
-        perror("Incorrect amount of arguments.");
-        printf("Aguments should be: <-e/-i> <PERMISSIONS_FILE> [DIRECTORY_TO_CHECK]\n");
-        return 1;
-    }
-    char *directory = NULL;
-    if (argc < 4) {
-        directory = getcwd(NULL, 0);
+     static struct option longopts[] = {
+             { "export", required_argument, NULL, 'e' },
+             { "import", required_argument, NULL, 'i' },
+             { 0, 0, 0, 0 }
+     };
 
-    } else {
-        directory = argv[3];
-    }
-
-    char* filepath = argv[2];
-    int result;
-
-    if (strcmp(argv[1], "-e") == 0) {
-        result = export_perms(directory, filepath);
-    } else if (strcmp(argv[1], "-i") == 0) {
-        result = import_perms(directory, filepath);
-    } else {
-        result = EXIT_FAILURE;
-        fprintf(stderr, "Invalid option flag: %s\n", argv[1]);
+    int option;
+    if ((option = getopt_long(argc, argv, ":e:i:", longopts, NULL)) == -1) {
+       perror("No arguments given.");
+       printf("Arguments should be: <-e/-i> <PERMISSIONS_FILE> [DIRECTORY_TO_CHECK]");
+       return EXIT_FAILURE;
     }
 
-    if (argc < 4) {
-        free(directory);
-    }
+    switch(option){
+        case 'i':
+            if (argv[optind] == NULL) {
+                return import_perms(getcwd(NULL, 0), optarg);
+            } else {
+                return import_perms(argv[optind], optarg);
+            }
+            break;
+        case 'e':
+            if (argv[optind] == NULL) {
+                return export_perms(getcwd(NULL, 0), optarg);
+            } else {
+                return export_perms(argv[optind], optarg);
+            }
+            break;
+        case '?':
+            fprintf(stderr, "Unknown option: %c\n", optopt);
+            return EXIT_FAILURE;
+        case ':':
+            fprintf(stderr, "Missing specification for file after %c\n", optopt);
+            return EXIT_FAILURE;
+        }
 
-    return result;
+    return EXIT_SUCCESS;
 }
