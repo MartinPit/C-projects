@@ -54,6 +54,7 @@ int save_perms(char* path, char* save_file, char* path_to_print)
 
     if (strcmp(path_to_print, ".")) { //* Don't print a new line if it's the first record
         fprintf(file, "\n");
+        fprintf(file, "\n");
     }
 
     char flags[3];
@@ -72,15 +73,15 @@ int save_perms(char* path, char* save_file, char* path_to_print)
 
     fprintf(file, "user::%c%c%c\n", perms[0], perms[1], perms[2]);
     fprintf(file, "group::%c%c%c\n", perms[3], perms[4], perms[5]);
-    fprintf(file, "other::%c%c%c\n", perms[6], perms[7], perms[8]);
+    fprintf(file, "other::%c%c%c", perms[6], perms[7], perms[8]);
 
     fclose(file);
     return 0;
 }
 
-void free_remaining(struct dirent **dirs, int amount, int position)
+void free_dirent(struct dirent **dirs, int amount)
 {
-    for (int i = position; i < amount; i++) {
+    for (int i = 0; i < amount; i++) {
         free(dirs[i]);
     }
 
@@ -114,7 +115,7 @@ char* get_new_name(char* path, char* name)
     return new_name;
 }
 
-int traverse_dirs(char* path, char* save_file, char* path_to_print)
+int export_perms(char* path, char* save_file, char* path_to_print)
 {
     struct dirent **dirs = NULL;
     int dir_amount = scandir(path, &dirs, is_dir, alphasort);
@@ -128,33 +129,32 @@ int traverse_dirs(char* path, char* save_file, char* path_to_print)
     for (i = 0; i < dir_amount; i++) {
         char *name = dirs[i] -> d_name;
         if (! strcmp(".", name) || ! strcmp("..", name)) {
-            free(dirs[i]);
             continue;
         }
 
         char* next = get_new_name(path, name);
         if (next == NULL) {
             perror("Failed to allocate memory.");
-            free_remaining(dirs, dir_amount, i);
+            free_dirent(dirs, dir_amount);
             return 1;
         }
         char* new_name = get_new_name(path_to_print, name);
         if (new_name == NULL) {
             perror("Failed to allocate memory.");
-            free_remaining(dirs, dir_amount, i);
+            free_dirent(dirs, dir_amount);
             free(next);
             return 1;
         }
 
         if (save_perms(next, save_file, new_name) == 1) {
-            free_remaining(dirs, dir_amount, i);
+            free_dirent(dirs, dir_amount);
             free(next);
             free(new_name);
             return 1;
         }
 
-        if (traverse_dirs(next, save_file, new_name) == 1) {
-            free_remaining(dirs, dir_amount, i);
+        if (export_perms(next, save_file, new_name) == 1) {
+            free_dirent(dirs, dir_amount);
             free(next);
             free(new_name);
             return 1;
@@ -162,9 +162,9 @@ int traverse_dirs(char* path, char* save_file, char* path_to_print)
 
         free(next);
         free(new_name);
-        free(dirs[i]);
     }
-    free(dirs);
+    free_dirent(dirs, dir_amount);
+
     struct dirent **files = NULL;
     int file_amount = scandir(path, &files, is_file, alphasort);
 
@@ -179,19 +179,19 @@ int traverse_dirs(char* path, char* save_file, char* path_to_print)
         char* next = get_new_name(path, name);
         if (next == NULL) {
             perror("Failed to allocate memory.");
-            free_remaining(files, file_amount, i);
+            free_dirent(files, file_amount);
             return 1;
         }
         char* new_name = get_new_name(path_to_print, name);
         if (new_name == NULL) {
             perror("Failed to allocate memory.");
-            free_remaining(files, file_amount, i);
+            free_dirent(files, file_amount);
             free(next);
             return 1;
         }
 
         if (save_perms(next, save_file, new_name) == 1) {
-            free_remaining(files, file_amount, i);
+            free_dirent(files, file_amount);
             free(next);
             free(new_name);
             return 1;
@@ -199,9 +199,8 @@ int traverse_dirs(char* path, char* save_file, char* path_to_print)
 
         free(next);
         free(new_name);
-        free(files[i]);
     }
-    free(files);
+    free_dirent(files, file_amount);
 
     return 0;
 }

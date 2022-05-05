@@ -2,14 +2,23 @@
 #include "import_perms.h"
 #include <getopt.h>
 
-int export_perms(char* path, char* save_file)
+int export(char* path, char* save_file)
 {
     if (save_perms(path, save_file, ".") == 1) { //* print the first folder in a special way
                                                  //* with "." as a path to show
         return 1;
     }
 
-    return traverse_dirs(path, save_file, "");
+    return export_perms(path, save_file, "");
+}
+
+int import(char* path, char* info_file)
+{
+    FILE* file = fopen(info_file, "r");
+    int result = import_perms(path, file);
+
+    fclose(file);
+    return result;
 }
 
 int main(int argc, char** argv) {
@@ -29,16 +38,16 @@ int main(int argc, char** argv) {
     switch(option){
         case 'i':
             if (argv[optind] == NULL) {
-                return import_perms(getcwd(NULL, 0), optarg);
+                return import(getcwd(NULL, 0), optarg);
             } else {
-                return import_perms(argv[optind], optarg);
+                return import(argv[optind], optarg);
             }
             break;
         case 'e':
             if (argv[optind] == NULL) {
-                return export_perms(getcwd(NULL, 0), optarg);
+                return export(getcwd(NULL, 0), optarg);
             } else {
-                return export_perms(argv[optind], optarg);
+                return export(argv[optind], optarg);
             }
             break;
         case '?':

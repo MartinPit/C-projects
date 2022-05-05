@@ -32,6 +32,6 @@ int save_perms(char* path, char* save_file, char* path_to_print);
  * @param path_to_print with what path to represent the directory
  * @return int 1 if any error occured, 0 otherwise
  */
-int traverse_dirs(char* path, char* save_file, char* path_to_print);
+int export_perms(char* path, char* save_file, char* path_to_print);
 
 #endif
