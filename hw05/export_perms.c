@@ -52,6 +52,10 @@ int save_perms(char* path, char* save_file, char* path_to_print)
         return 1;
     }
 
+    if (strcmp(path_to_print, ".")) { //* Don't print a new line if it's the first record
+        fprintf(file, "\n");
+    }
+
     char flags[3];
     char perms[9];
 
@@ -69,7 +73,6 @@ int save_perms(char* path, char* save_file, char* path_to_print)
     fprintf(file, "user::%c%c%c\n", perms[0], perms[1], perms[2]);
     fprintf(file, "group::%c%c%c\n", perms[3], perms[4], perms[5]);
     fprintf(file, "other::%c%c%c\n", perms[6], perms[7], perms[8]);
-    fprintf(file, "\n");
 
     fclose(file);
     return 0;
