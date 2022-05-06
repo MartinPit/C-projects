@@ -13,11 +13,11 @@
 #include <dirent.h>
 
 typedef struct perm_info {
-    char** path;
-    char** owner;
-    char** group;
-    int flags[3];
-    int perms[9];
+    char* path;
+    char* owner;
+    char* group;
+    char flags[3];
+    char perms[9];
 
 } perm_info;
 

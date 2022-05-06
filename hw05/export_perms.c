@@ -98,6 +98,11 @@ int is_file(const struct dirent *file)
     return file -> d_type == DT_REG ? 1 : 0;
 }
 
+int is_bad(const struct dirent *file)
+{
+    return is_file(file) && is_dir(file) ? 1 : 0;
+}
+
 char* get_new_name(char* path, char* name)
 {
     char *new_name = malloc(strlen(path) + strlen(name) + 2);
@@ -202,5 +207,13 @@ int export_perms(char* path, char* save_file, char* path_to_print)
     }
     free_dirent(files, file_amount);
 
+    struct dirent **error_files = NULL;
+    int amount = scandir(path, &files, is_bad, alphasort);
+
+    for (i = 0; i < amount; i++) {
+        fprintf(stderr, "File: %s - not regular file or directory", error_files[i] -> d_name);
+    }
+
+    free_dirent(error_files, amount);
     return 0;
 }

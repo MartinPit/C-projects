@@ -15,6 +15,10 @@ int export(char* path, char* save_file)
 int import(char* path, char* info_file)
 {
     FILE* file = fopen(info_file, "r");
+    if (file == NULL) {
+        perror("File couldn't be opened.");
+        return 1;
+    }
     int result = import_perms(path, file);
 
     fclose(file);
