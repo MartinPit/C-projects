@@ -90,17 +90,17 @@ void free_dirent(struct dirent **dirs, int amount)
 
 int is_dir(const struct dirent *file)
 {   
-    return file -> d_type == DT_DIR ? 1 : 0;
+    return file -> d_type == DT_DIR;
 }
 
 int is_file(const struct dirent *file)
 {   
-    return file -> d_type == DT_REG ? 1 : 0;
+    return file -> d_type == DT_REG;
 }
 
 int is_bad(const struct dirent *file)
 {
-    return is_file(file) && is_dir(file) ? 1 : 0;
+    return !is_file(file) && !is_dir(file);
 }
 
 char* get_new_name(char* path, char* name)
@@ -208,10 +208,11 @@ int export_perms(char* path, char* save_file, char* path_to_print)
     free_dirent(files, file_amount);
 
     struct dirent **error_files = NULL;
-    int amount = scandir(path, &files, is_bad, alphasort);
+    int amount = scandir(path, &error_files, is_bad, alphasort);
 
-    for (i = 0; i < amount; i++) {
-        fprintf(stderr, "File: %s - not regular file or directory", error_files[i] -> d_name);
+    if (amount != 0) {
+        fprintf(stderr, "File: %s - not regular file or directory\n", error_files[0] -> d_name);
+        return 1;
     }
 
     free_dirent(error_files, amount);

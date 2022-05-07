@@ -135,7 +135,7 @@ void create_mode(mode_t* mode, perm_info* info)
 int set_perms(char* path, perm_info* info)
 {
     struct stat st;
-    if (lstat(path, &st) == -1) {
+    if (stat(path, &st) == -1) {
         perror("Couldn't read info about the file with stat");
         return 1;
     }
@@ -189,7 +189,7 @@ int import_perms(char* directory, FILE* info_file)
                 destroy_info(info);
                 return 1;
             }
-
+        printf("%s", info -> path);
         if (! strcmp(info -> path, ".")) {
             strcpy(full_path, directory);
         } else {
