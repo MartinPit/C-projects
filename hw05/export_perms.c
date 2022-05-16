@@ -4,7 +4,7 @@ void get_flags(mode_t mode, char* array)
 {
     array[0] = (mode & S_ISUID) ? 's' : '-';
     array[1] = (mode & S_ISGID) ? 's' : '-';
-    array[2] = (mode & __S_ISVTX) ? 't' : '-';
+    array[2] = (mode & S_ISVTX) ? 't' : '-';
 }
 
 void get_perms(mode_t mode, char* array)
