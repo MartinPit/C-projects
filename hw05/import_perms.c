@@ -189,7 +189,7 @@ int import_perms(char* directory, FILE* info_file)
                 destroy_info(info);
                 return 1;
             }
-        printf("%s", info -> path);
+
         if (! strcmp(info -> path, ".")) {
             strcpy(full_path, directory);
         } else {
