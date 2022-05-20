@@ -14,6 +14,7 @@ struct capture_t
     struct pcap_header_t *header;
     struct node_t *first;
     struct node_t *last;
+    size_t length;
 };
 
 /**

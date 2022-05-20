@@ -27,67 +27,40 @@ bool nft(char *file, uint8_t src_ip[4], uint8_t dst_ip[4], uint8_t *src_mask, ui
         return false;
     }
 
-    struct capture_t *capture = malloc(sizeof(struct capture_t));
-    if (capture == NULL) {
-        fprintf(stderr, "Failed to allocate memory.\n");
-        return false;
-    }
+    struct capture_t capture;
 
-    struct capture_t *filtered = malloc(sizeof(struct capture_t));
-    if (capture == NULL) {
-        free(capture);
-        fprintf(stderr, "Failed to allocate memory.\n");
-        return false;
-    }
+    struct capture_t filtered;
 
-    struct capture_t *final = malloc(sizeof(struct capture_t));
-    if (capture == NULL) {
-        free(capture);
-        free(filtered);
-        fprintf(stderr, "Failed to allocate memory.\n");
-        return false;
-    }
+    struct capture_t final;
 
-    if (load_capture(capture, file) == -1) {
-        free(capture);
-        free(filtered);
-        free(final);
+    if (load_capture(&capture, file) == -1) {
         fprintf(stderr, "Failed to load capture.\n");
         return false;
     }
 
-    if (filter_from_mask(capture, filtered, src_ip, *src_mask) == -1) {
-        destroy_capture(capture);
-        free(capture);
-        free(filtered);
-        free(final);
+    if (filter_from_mask(&capture, &filtered, src_ip, *src_mask) == -1) {
+        destroy_capture(&capture);
         fprintf(stderr, "Failed to filter capture.\n");
         return false;
     }
 
-    if (filter_to_mask(filtered, final, dst_ip, *dst_mask) == -1) {
-        destroy_capture(capture);
-        destroy_capture(filtered);
-        free(capture);
-        free(filtered);
-        free(final);
+    if (filter_to_mask(&filtered, &final, dst_ip, *dst_mask) == -1) {
+        destroy_capture(&capture);
+        destroy_capture(&filtered);
         fprintf(stderr, "Failed to filter capture.\n");
         return false;
     }
 
     int result = -1;
     if (!strcmp(mode, "flowstats")) {
-        result = print_flow_stats(final);
+        result = print_flow_stats(&final);
     } else {
-        result = print_longest_flow(final);
+        result = print_longest_flow(&final);
     }
 
-    destroy_capture(capture);
-    destroy_capture(filtered);
-    destroy_capture(final);
-    free(capture);
-    free(filtered);
-    free(final);
+    destroy_capture(&capture);
+    destroy_capture(&filtered);
+    destroy_capture(&final);
 
     if (result == -1) {
         return false;
@@ -99,12 +72,12 @@ bool nft(char *file, uint8_t src_ip[4], uint8_t dst_ip[4], uint8_t *src_mask, ui
 int main(int argc, char *argv[])
 {
     if (argc != 5) {
-        fwrite("Invalid amount of arguments.\n", 29, 1, stderr);
+        fprintf(stderr, "Invalid amount of arguments.\n");
         return EXIT_FAILURE;
     }
 
     if (strcmp(argv[4], "flowstats") && strcmp(argv[4], "longestflow")) {
-        fwrite("Invalid statistic option.\n", 26, 1, stderr);
+        fprintf(stderr, "Invalid statistic option.\n");
         return EXIT_FAILURE;
     }
 
@@ -116,29 +89,29 @@ int main(int argc, char *argv[])
     int result = parse_input(argv[2], src_ip, &src_mask);
 
     if (result == -1) {
-        fwrite("Ip/mask parsing error.\n", 23, 1, stderr);
+        fprintf(stderr, "Ip/mask parsing error.\n");
         return EXIT_FAILURE;
     }
 
     if (result == 1) {
-        fwrite("Invalid ip/mask format.\n", 24, 1, stderr);
+        fprintf(stderr, "Invalid ip/mask format.\n");
         return EXIT_FAILURE;
     }
 
     result = parse_input(argv[3], dst_ip, &dst_mask);
 
     if (result == -1) {
-        fwrite("Ip/mask parsing error.\n", 23, 1, stderr);
+        fprintf(stderr, "Ip/mask parsing error.\n");
         return EXIT_FAILURE;
     }
 
     if (result == 1) {
-        fwrite("Invalid ip/mask format.\n", 24, 1, stderr);
+        fprintf(stderr, "Invalid ip/mask format.\n");
         return EXIT_FAILURE;
     }
 
     if (src_mask > 32 || dst_mask > 32) {
-        fwrite("Invalid amount of mask bits.\n", 29, 1, stderr);
+        fprintf(stderr, "Invalid amount of mask bits.\n");
         return EXIT_FAILURE;
     }
 

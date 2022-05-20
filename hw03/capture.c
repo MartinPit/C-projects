@@ -1,11 +1,9 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 #include "capture.h"
-
-#define UNUSED(x) ((void) x);
-#define MAX_VAL 4294967295
 
 void destroy_node(struct node_t *node);
 int add_node(struct pcap_context *, struct capture_t *);
@@ -49,6 +47,7 @@ int load_capture(struct capture_t *capture, const char *filename)
 
     capture->first = NULL;
     capture->last = NULL;
+    capture->length = 0;
 
     int status = add_node(&context, capture);
     while (status == PCAP_SUCCESS) {
@@ -111,16 +110,7 @@ struct packet_t *get_packet(
 
 size_t packet_count(const struct capture_t *const capture)
 {
-    size_t length = 0;
-
-    struct node_t *node = capture->first;
-
-    while (node != NULL) {
-        length++;
-        node = node->next;
-    }
-
-    return length;
+    return capture->length;
 }
 
 size_t data_transfered(const struct capture_t *const capture)
@@ -270,10 +260,7 @@ int filter_to_mask(
 
 void print_ip(uint8_t *ip)
 {
-    printf("%u", ip[0]);
-    for (int i = 1; i < 4; i++) {
-        printf(".%u", ip[i]);
-    }
+    printf("%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
 }
 
 bool add_flow(const struct capture_t *const capture, struct linked_flow *flows, uint8_t src[], uint8_t dst[])
@@ -406,20 +393,33 @@ int print_flow_stats(const struct capture_t *const capture)
 
     return 0;
 }
+uint32_t get_sec(const struct flow_t *const flow)
+{
+    uint32_t last_stamp = flow->capture->last->packet->packet_header->ts_sec;
+    uint32_t first_stamp = flow->capture->first->packet->packet_header->ts_sec;
+    return last_stamp - first_stamp;
+}
+
+uint32_t get_usec(const struct flow_t *const flow)
+{
+    uint32_t last_stamp = flow->capture->last->packet->packet_header->ts_usec;
+    uint32_t first_stamp = flow->capture->first->packet->packet_header->ts_usec;
+    return last_stamp - first_stamp;
+}
 
 struct flow_t *find_longest_flow(const struct linked_flow *const flows)
 {
     struct flow_t *longest = flows->first;
-    uint32_t longest_sec = longest->capture->last->packet->packet_header->ts_sec - longest->capture->first->packet->packet_header->ts_sec;
+    uint32_t longest_sec = get_sec(longest);
 
-    uint32_t longest_usec = longest->capture->last->packet->packet_header->ts_usec - longest->capture->first->packet->packet_header->ts_usec;
+    uint32_t longest_usec = get_usec(longest);
 
     struct flow_t *flow = flows->first->next;
 
     while (flow != NULL) {
-        uint32_t temp_sec = flow->capture->last->packet->packet_header->ts_sec - flow->capture->first->packet->packet_header->ts_sec;
+        uint32_t temp_sec = get_sec(flow);
 
-        uint32_t temp_usec = flow->capture->last->packet->packet_header->ts_usec - flow->capture->first->packet->packet_header->ts_usec;
+        uint32_t temp_usec = get_usec(flow);
 
         if (temp_sec > longest_sec) {
             longest = flow;
@@ -530,6 +530,7 @@ int add_node(struct pcap_context *context, struct capture_t *capture)
     }
 
     capture->last = node;
+    capture->length += 1;
 
     return PCAP_SUCCESS;
 }
@@ -554,6 +555,7 @@ bool add_copy_node(struct capture_t *capture, struct packet_t *packet)
     }
 
     capture->last = node;
+    capture->length += 1;
 
     return true;
 }
@@ -561,7 +563,7 @@ bool add_copy_node(struct capture_t *capture, struct packet_t *packet)
 uint32_t create_mask(uint8_t mask_length)
 {
     if (mask_length == 32) {
-        return MAX_VAL;
+        return UINT_MAX;
     }
     int to_move = 31;
     uint32_t mask = 0;
@@ -586,6 +588,7 @@ bool init_copy_capture(const struct capture_t *const original, struct capture_t 
 
     copy->first = NULL;
     copy->last = NULL;
+    copy->length = 0;
 
     return true;
 }
