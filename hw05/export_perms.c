@@ -22,7 +22,7 @@ void get_perms(mode_t mode, char* array)
     array[8] = (mode & S_IXOTH) ? 'x' : '-';
 }
 
-int save_perms(char* path, char* save_file, char* path_to_print)
+int save_perms(char* path, FILE* file, char* path_to_print)
 {
     struct stat st;
 
@@ -45,15 +45,7 @@ int save_perms(char* path, char* save_file, char* path_to_print)
         return 1;
     }
 
-    FILE* file = fopen(save_file, "a");
-
-    if (file == NULL) {
-        perror("Could not open file.");
-        return 1;
-    }
-
-    if (strcmp(path_to_print, ".")) { //* Don't print a new line if it's the first record
-        fprintf(file, "\n");
+    if (strcmp(path_to_print, ".")) {
         fprintf(file, "\n");
     }
 
@@ -73,9 +65,9 @@ int save_perms(char* path, char* save_file, char* path_to_print)
 
     fprintf(file, "user::%c%c%c\n", perms[0], perms[1], perms[2]);
     fprintf(file, "group::%c%c%c\n", perms[3], perms[4], perms[5]);
-    fprintf(file, "other::%c%c%c", perms[6], perms[7], perms[8]);
+    fprintf(file, "other::%c%c%c\n", perms[6], perms[7], perms[8]);
 
-    fclose(file);
+    fflush(file);
     return 0;
 }
 
@@ -90,12 +82,12 @@ void free_dirent(struct dirent **dirs, int amount)
 
 int is_dir(const struct dirent *file)
 {   
-    return file -> d_type == DT_DIR;
+    return file -> d_type == 4;
 }
 
 int is_file(const struct dirent *file)
 {   
-    return file -> d_type == DT_REG;
+    return file -> d_type == 8;
 }
 
 int is_bad(const struct dirent *file)
@@ -120,7 +112,7 @@ char* get_new_name(char* path, char* name)
     return new_name;
 }
 
-int export_perms(char* path, char* save_file, char* path_to_print)
+int export_perms(char* path, FILE* save_file, char* path_to_print)
 {
     struct dirent **dirs = NULL;
     int dir_amount = scandir(path, &dirs, is_dir, alphasort);

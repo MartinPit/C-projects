@@ -1,6 +1,10 @@
 #ifndef EXPORT_PERMS_H
 #define EXPORT_PERMS_H
 
+#ifndef S_ISVTX
+#define S_ISVTX 0001000
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -20,7 +24,7 @@
  * @param path_to_print what path should represent the saved file
  * @return int 1 if any error occured, 0 otherwise
  */
-int save_perms(char* path, char* save_file, char* path_to_print);
+int save_perms(char* path, FILE* save_file, char* path_to_print);
 
 /**
  * @brief Recursively travels all the subdirectories and files
@@ -32,6 +36,6 @@ int save_perms(char* path, char* save_file, char* path_to_print);
  * @param path_to_print with what path to represent the directory
  * @return int 1 if any error occured, 0 otherwise
  */
-int export_perms(char* path, char* save_file, char* path_to_print);
+int export_perms(char* path, FILE* save_file, char* path_to_print);
 
 #endif

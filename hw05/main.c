@@ -3,13 +3,22 @@
 #include <getopt.h>
 
 int export(char* path, char* save_file)
-{
-    if (save_perms(path, save_file, ".") == 1) { //* print the first folder in a special way
-                                                 //* with "." as a path to show
+{   
+
+    FILE* file = fopen(save_file, "w+");
+    if (file == NULL) {
+        perror("File couldn't be opened.");
         return 1;
     }
 
-    return export_perms(path, save_file, "");
+    if (save_perms(path, file, ".") == 1) { //* print the first folder in a special way
+        fclose(file);                       //* with "." as a path to show
+        return 1;
+    }
+
+    int result = export_perms(path, file, "");
+
+    return result;
 }
 
 int import(char* path, char* info_file)

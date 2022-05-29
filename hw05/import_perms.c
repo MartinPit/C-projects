@@ -92,7 +92,7 @@ void create_mode(mode_t* mode, perm_info* info)
     }
 
     if (flags[2] == 't') {
-        *mode |= __S_ISVTX;
+        *mode |= S_ISVTX;
     }
 
     if (perms[0] == 'r') {

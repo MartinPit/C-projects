@@ -1,6 +1,10 @@
 #ifndef IMPORT_PERMS_H
 #define IMPORT_PERMS_H
 
+#ifndef S_ISVTX
+#define S_ISVTX 0001000
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
