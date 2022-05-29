@@ -17,6 +17,7 @@ int export(char* path, char* save_file)
     }
 
     int result = export_perms(path, file, "");
+    fclose(file);
 
     return result;
 }
@@ -51,7 +52,10 @@ int main(int argc, char** argv) {
     switch(option){
         case 'i':
             if (argv[optind] == NULL) {
-                return import(getcwd(NULL, 0), optarg);
+                char* dir = getcwd(NULL, 0);
+                int result = import(dir, optarg);
+                free(dir);
+                return result;
             } else {
                 return import(argv[optind], optarg);
             }
