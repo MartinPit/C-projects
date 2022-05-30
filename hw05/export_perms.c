@@ -1,5 +1,8 @@
 #include "export_perms.h"
 
+#define DT_DIR 4
+#define DT_REG 8
+
 void get_flags(mode_t mode, char* array)
 {
     array[0] = (mode & S_ISUID) ? 's' : '-';
@@ -26,7 +29,7 @@ int save_perms(char* path, FILE* file, char* path_to_print)
 {
     struct stat st;
 
-    if (lstat(path, &st) == -1) {
+    if (stat(path, &st) == -1) {
         perror("Could not get info about file with stat.");
         return 1;
     }
@@ -82,12 +85,12 @@ void free_dirent(struct dirent **dirs, int amount)
 
 int is_dir(const struct dirent *file)
 {   
-    return file -> d_type == 4;
+    return file -> d_type == DT_DIR;
 }
 
 int is_file(const struct dirent *file)
 {   
-    return file -> d_type == 8;
+    return file -> d_type == DT_REG;
 }
 
 int is_bad(const struct dirent *file)
