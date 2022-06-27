@@ -1,7 +1,7 @@
-#include "export_perms.h"
-#include "import_perms.h"
 #include <getopt.h>
 #include <limits.h>
+#include "export_perms.h"
+#include "import_perms.h"
 
 int export(char* path, char* save_file)
 {   
@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
      static struct option longopts[] = {
              { "export", required_argument, NULL, 'e' },
              { "import", required_argument, NULL, 'i' },
-             { 0, 0, 0, 0 }
+             { 0 }
      };
 
     int option;
