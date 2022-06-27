@@ -1,11 +1,12 @@
+#include <getopt.h>
+#include <limits.h>
 #include "export_perms.h"
 #include "import_perms.h"
-#include <getopt.h>
 
 int export(char* path, char* save_file)
 {   
 
-    FILE* file = fopen(save_file, "w+");
+    FILE* file = fopen(save_file, "w");
     if (file == NULL) {
         perror("File couldn't be opened.");
         return 1;
@@ -39,7 +40,7 @@ int main(int argc, char** argv) {
      static struct option longopts[] = {
              { "export", required_argument, NULL, 'e' },
              { "import", required_argument, NULL, 'i' },
-             { 0, 0, 0, 0 }
+             { 0 }
      };
 
     int option;
@@ -49,22 +50,23 @@ int main(int argc, char** argv) {
        return EXIT_FAILURE;
     }
 
+    int status = 1;
+    char cwd[PATH_MAX] = {0};
+    getcwd(cwd, sizeof(cwd));
+
     switch(option){
         case 'i':
             if (argv[optind] == NULL) {
-                char* dir = getcwd(NULL, 0);
-                int result = import(dir, optarg);
-                free(dir);
-                return result;
+                status = import(cwd, optarg);
             } else {
-                return import(argv[optind], optarg);
+                status = import(argv[optind], optarg);
             }
             break;
         case 'e':
             if (argv[optind] == NULL) {
-                return export(getcwd(NULL, 0), optarg);
+                status = export(cwd, optarg);
             } else {
-                return export(argv[optind], optarg);
+                status = export(argv[optind], optarg);
             }
             break;
         case '?':
@@ -74,6 +76,5 @@ int main(int argc, char** argv) {
             fprintf(stderr, "Missing specification for file after %c\n", optopt);
             return EXIT_FAILURE;
         }
-
-    return EXIT_SUCCESS;
+    return status;
 }

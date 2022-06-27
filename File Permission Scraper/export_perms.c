@@ -59,8 +59,8 @@ int save_perms(char* path, FILE* file, char* path_to_print)
     get_perms(st.st_mode, perms);
 
     fprintf(file, "# file: %s\n", path_to_print);
-    fprintf(file, "# owner: %s\n", pw -> pw_name);
-    fprintf(file, "# group: %s\n", grp -> gr_name);
+    fprintf(file, "# owner: %s\n", pw->pw_name);
+    fprintf(file, "# group: %s\n", grp->gr_name);
 
     if (flags[0] != '-' || flags[1] != '-' || flags[2] != '-') { //* if no flag is used
         fprintf(file, "# flags: %c%c%c\n", flags[0], flags[1], flags[2]);
@@ -70,7 +70,6 @@ int save_perms(char* path, FILE* file, char* path_to_print)
     fprintf(file, "group::%c%c%c\n", perms[3], perms[4], perms[5]);
     fprintf(file, "other::%c%c%c\n", perms[6], perms[7], perms[8]);
 
-    fflush(file);
     return 0;
 }
 
@@ -83,28 +82,37 @@ void free_dirent(struct dirent **dirs, int amount)
     free(dirs);
 }
 
-int is_dir(const struct dirent *file)
-{   
-    return file -> d_type == DT_DIR;
-}
-
-int is_file(const struct dirent *file)
-{   
-    return file -> d_type == DT_REG;
-}
-
-int is_bad(const struct dirent *file)
+int is_dir(char* path)
 {
-    return !is_file(file) && !is_dir(file);
+    struct stat st;
+
+    if (lstat(path, &st) == -1) {
+        perror("Could not get info about file with stat.");
+        return 1;
+    }
+
+    return !S_ISDIR(st.st_mode);
+}
+
+int is_file(char *path)
+{
+    struct stat st;
+
+    if (lstat(path, &st) == -1) {
+        perror("Could not get info about file with stat.");
+        return 1;
+    }
+
+    return !S_ISREG(st.st_mode);
 }
 
 char* get_new_name(char* path, char* name)
 {
     char *new_name = malloc(strlen(path) + strlen(name) + 2);
-        if (new_name == NULL) {
-            perror("Malloc failure.");
-            return NULL;
-        }
+    if (new_name == NULL) {
+        perror("Malloc failure.");
+        return NULL;
+    }
 
     if (! strcmp("", path)) {
             strcpy(new_name, name);
@@ -118,16 +126,15 @@ char* get_new_name(char* path, char* name)
 int export_perms(char* path, FILE* save_file, char* path_to_print)
 {
     struct dirent **dirs = NULL;
-    int dir_amount = scandir(path, &dirs, is_dir, alphasort);
+    int dir_amount = scandir(path, &dirs, NULL, alphasort);
 
     if (dir_amount == -1) {
         perror("Could not scan files in subdirectory.");
         return 1;
     }
 
-    int i;
-    for (i = 0; i < dir_amount; i++) {
-        char *name = dirs[i] -> d_name;
+    for (int i = 0; i < dir_amount; i++) {
+        char *name = dirs[i]->d_name;
         if (! strcmp(".", name) || ! strcmp("..", name)) {
             continue;
         }
@@ -138,6 +145,23 @@ int export_perms(char* path, FILE* save_file, char* path_to_print)
             free_dirent(dirs, dir_amount);
             return 1;
         }
+
+        int dir_val = is_dir(next);
+        int file_val = is_file(next);
+        if (dir_val == -1 || file_val == -1) {
+            fprintf(stderr, "Could not get info about file with stat.\n");
+            free(next);
+            free_dirent(dirs, dir_amount);
+            return 1;
+        }
+        if (dir_val == 1) {
+            if (file_val == 1) {
+                fprintf(stderr, "File: %s - not regular file or directory\n", dirs[i]->d_name);
+            }
+            free(next);
+            continue;
+        }
+
         char* new_name = get_new_name(path_to_print, name);
         if (new_name == NULL) {
             perror("Failed to allocate memory.");
@@ -166,15 +190,15 @@ int export_perms(char* path, FILE* save_file, char* path_to_print)
     free_dirent(dirs, dir_amount);
 
     struct dirent **files = NULL;
-    int file_amount = scandir(path, &files, is_file, alphasort);
+    int file_amount = scandir(path, &files, NULL, alphasort);
 
     if (file_amount == -1) {
         perror("Could not scan files in subdirectory.");
         return 1;
     }
 
-    for (i = 0; i < file_amount; i++) {
-        char *name = files[i] -> d_name;
+    for (int i = 0; i < file_amount; i++) {
+        char *name = files[i]->d_name;
         
         char* next = get_new_name(path, name);
         if (next == NULL) {
@@ -182,6 +206,20 @@ int export_perms(char* path, FILE* save_file, char* path_to_print)
             free_dirent(files, file_amount);
             return 1;
         }
+
+        int ret_val = is_file(next);
+        if (ret_val == -1) {
+            fprintf(stderr, "Could not get info about file with stat.\n");
+            free(next);
+            free_dirent(files, file_amount);
+            return 1;
+        }
+
+        if (ret_val == 1) {
+            free(next);
+            continue;
+        }
+
         char* new_name = get_new_name(path_to_print, name);
         if (new_name == NULL) {
             perror("Failed to allocate memory.");
@@ -201,15 +239,5 @@ int export_perms(char* path, FILE* save_file, char* path_to_print)
         free(new_name);
     }
     free_dirent(files, file_amount);
-
-    struct dirent **error_files = NULL;
-    int amount = scandir(path, &error_files, is_bad, alphasort);
-
-    if (amount != 0) {
-        fprintf(stderr, "File: %s - not regular file or directory\n", error_files[0] -> d_name);
-        return 1;
-    }
-
-    free_dirent(error_files, amount);
     return 0;
 }
